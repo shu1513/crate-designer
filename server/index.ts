@@ -1,11 +1,24 @@
-import { createServer } from "node:http";
+import { createServer, type IncomingMessage } from "node:http";
+import { mkdirSync } from "node:fs";
 import { readFile, stat } from "node:fs/promises";
-import { extname, isAbsolute, join, normalize, relative } from "node:path";
+import { dirname, extname, isAbsolute, join, normalize, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { handleApi } from "./api.ts";
+import { RecordStore } from "./db.ts";
 
 const PORT = Number(process.env.PORT ?? 8787);
 const DIST = fileURLToPath(new URL("../dist/", import.meta.url));
+const DB_PATH = process.env.DB_PATH ?? fileURLToPath(new URL("../data/crate-designer.sqlite", import.meta.url));
+const MAX_BODY = 64 * 1024 * 1024; // a 20 MB GLB as base64 inside JSON
+
+let store: RecordStore | null = null;
+try {
+  mkdirSync(dirname(DB_PATH), { recursive: true });
+  store = new RecordStore(DB_PATH);
+  console.log(`Records database: ${DB_PATH}`);
+} catch (err) {
+  console.error(`Records unavailable: ${(err as Error).message}`);
+}
 
 const CONTENT_TYPES: Record<string, string> = {
   ".html": "text/html; charset=utf-8",
@@ -50,13 +63,48 @@ async function serveStatic(pathname: string): Promise<StaticFile> {
   }
 }
 
+function readJsonBody(req: IncomingMessage): Promise<unknown> {
+  return new Promise((resolve, reject) => {
+    const chunks: Buffer[] = [];
+    let size = 0;
+    req.on("data", (chunk: Buffer) => {
+      size += chunk.length;
+      if (size > MAX_BODY) {
+        reject(new Error("Body too large"));
+        req.destroy();
+        return;
+      }
+      chunks.push(chunk);
+    });
+    req.on("end", () => {
+      if (chunks.length === 0) return resolve(null);
+      try {
+        resolve(JSON.parse(Buffer.concat(chunks).toString("utf8")));
+      } catch {
+        reject(new Error("Body is not valid JSON"));
+      }
+    });
+    req.on("error", reject);
+  });
+}
+
 const server = createServer(async (req, res) => {
   try {
     const url = new URL(req.url ?? "/", `http://localhost:${PORT}`);
     if (url.pathname.startsWith("/api/")) {
-      const { status, body } = handleApi(req.method ?? "GET", url.pathname);
+      let body: unknown = null;
+      if (req.method === "POST") {
+        try {
+          body = await readJsonBody(req);
+        } catch (err) {
+          res.writeHead(400, { "content-type": "application/json; charset=utf-8" });
+          res.end(JSON.stringify({ error: (err as Error).message }));
+          return;
+        }
+      }
+      const { status, body: out } = handleApi({ method: req.method ?? "GET", pathname: url.pathname, query: url.searchParams, body }, store);
       res.writeHead(status, { "content-type": "application/json; charset=utf-8" });
-      res.end(JSON.stringify(body));
+      res.end(JSON.stringify(out));
       return;
     }
     const file = await serveStatic(url.pathname);

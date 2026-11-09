@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { boardSvg, stepSvg } from "../src/core/drawings.ts";
+import { boardSvg, panelSvg, stepSvg } from "../src/core/drawings.ts";
 import { formatLength, formatWeight, renderText, wordCount } from "../src/core/format.ts";
 import { designFromPart } from "../src/core/design.ts";
 import { loadPart } from "../src/core/part.ts";
@@ -54,7 +54,7 @@ describe("R18: build steps", () => {
     const withSkids = designFromPart(shaftLike(), inputs(1, 27));
     expect(withSkids.steps.some((s) => s.pieceIds.includes("SK") && s.screw)).toBe(true);
     expect(withSkids.steps.filter((s) => s.flip).length).toBeGreaterThanOrEqual(3);
-    expect(d.steps.map((s) => s.id).slice(0, 4)).toEqual(["1a", "2a", "2b", "2c"]);
+    expect(d.steps.map((s) => s.id).slice(0, 4)).toEqual(["1a", "1b", "1c", "2a"]);
   });
 
   it("T-R15: every piece ID appears in at least one step", () => {
@@ -119,6 +119,32 @@ describe("R18, R11: drawings", () => {
     const out = boardSvg(board, "mm");
     expect(out).not.toContain("<script>");
     expect(out).toContain("&lt;script&gt;");
+  });
+
+  it("panel steps carry a flat panel drawing with every cleat labelled and positioned from the left end and bottom edge", () => {
+    const d = designFromPart(shaftLike(), inputs(1, 27));
+    const panelSteps = d.steps.filter((s) => s.panel);
+    expect(panelSteps.length).toBeGreaterThanOrEqual(3); // end, side, lid
+    for (const s of panelSteps) {
+      const out = panelSvg(s.panel!.skin, s.panel!.cleats, s.panel!.plane, "mm", s.panel!.title);
+      expect(out).toContain(`data-panel="${s.panel!.title}"`);
+      for (const c of s.panel!.cleats) expect(out).toContain(`<td>${c.id}</td>`);
+      expect(out).toContain(">L</text>");
+    }
+    const side = panelSteps.find((s) => s.panel!.plane === "side")!;
+    const bottomCleat = side.panel!.cleats.filter((c) => c.id === "SC-H").sort((a, b) => a.b.z - b.b.z)[0]!;
+    expect(bottomCleat.b.z - side.panel!.skin.z).toBe(d.tier.d); // one base-frame height up
+  });
+
+  it("the L-mark convention, screw spacing, and one-way loading are stated", () => {
+    const d = designFromPart(shaftLike(), inputs(1, 27));
+    expect(d.steps.find((s) => s.group === 1 && s.text.includes("letter L") && s.pieceIds.includes("FP"))).toBeDefined();
+    expect(d.steps.find((s) => s.group === 1 && s.text.includes("letter L") && s.pieceIds.includes("BC-1"))).toBeDefined();
+    expect(d.steps.filter((s) => s.text.includes("spaced evenly")).length).toBeGreaterThanOrEqual(2);
+    expect(d.steps.find((s) => s.text.startsWith("Lower each part"))!.note).toMatch(/one way round/);
+    expect(d.steps.find((s) => s.group === 11)!.text).toContain("L mark over the floor's L mark");
+    const uniform = designFromPart(bracketLike(), inputs(1, 21.5));
+    expect(uniform.steps.find((s) => s.text.startsWith("Lower each part"))!.note).toMatch(/either way round/);
   });
 
   it("T-R11: each cradle board drawing has a pocket table with one row per pocket and positive numbers", () => {

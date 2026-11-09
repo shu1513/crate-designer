@@ -102,6 +102,42 @@ export function boardSvg(piece: Piece, unit: DisplayUnit): string {
   return svg + caption + table;
 }
 
+/**
+ * Flat drawing of one panel (R18): the plywood as a rectangle seen from the cleat side, every cleat
+ * as a labelled rectangle, with its distance from the panel's left end and bottom edge. `plane`
+ * picks which crate axes become the drawing's horizontal and vertical.
+ */
+export function panelSvg(skin: Box, cleats: { id: string; b: Box }[], plane: "side" | "end" | "lid" | "floor", unit: DisplayUnit, title: string): string {
+  // horizontal: X for side/lid/floor, Y for end. vertical: Z for side/end, Y for lid/floor.
+  const h = (b: Box): [number, number] => (plane === "end" ? [b.y, b.dy] : [b.x, b.dx]);
+  const v = (b: Box): [number, number] => (plane === "side" || plane === "end" ? [b.z, b.dz] : [b.y, b.dy]);
+  const [sx, sw] = h(skin), [sy, sh] = v(skin);
+  const scale = 420 / Math.max(sw, 1);
+  const pad = 36;
+  const W = sw * scale, H = sh * scale;
+  // Drawing Y grows downward; crate vertical grows upward.
+  const X = (x: number) => pad + (x - sx) * scale;
+  const Y = (y: number) => pad + H - (y - sy) * scale;
+  const rect = (b: Box, fill: string, label: string) => {
+    const [bx, bw] = h(b), [by, bh] = v(b);
+    const cx = X(bx + bw / 2), cy = Y(by + bh / 2);
+    const fs = Math.max(10, Math.min(13, bw * scale * 0.5, bh * scale * 0.7));
+    return `<rect x="${X(bx).toFixed(1)}" y="${Y(by + bh).toFixed(1)}" width="${(bw * scale).toFixed(1)}" height="${(bh * scale).toFixed(1)}" fill="${fill}" stroke="#374151" stroke-width="1"/>` +
+      `<text x="${cx.toFixed(1)}" y="${(cy + fs / 3).toFixed(1)}" font-size="${fs.toFixed(0)}" text-anchor="middle" font-family="sans-serif" fill="#111827">${escape(label)}</text>`;
+  };
+  const rows = cleats.map(({ id, b }) => {
+    const [bx, bw] = h(b), [by, bh] = v(b);
+    return `<tr><td>${escape(id)}</td><td>${formatLength(bx - sx, unit)}</td><td>${formatLength(by - sy, unit)}</td><td>${formatLength(bw, unit)} × ${formatLength(bh, unit)}</td></tr>`;
+  }).join("");
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${(W + 2 * pad).toFixed(0)} ${(H + 2 * pad + 16).toFixed(0)}" data-panel="${escape(title)}">` +
+    `<rect x="${pad}" y="${pad}" width="${W.toFixed(1)}" height="${H.toFixed(1)}" fill="#fde68a" stroke="#374151" stroke-width="1"/>` +
+    cleats.map(({ id, b }) => rect(b, "#d6b27a", id)).join("") +
+    `<text x="${pad}" y="${(pad + H + 14).toFixed(1)}" font-size="11" font-family="sans-serif" fill="#374151">L = left end. Skin ${formatLength(sw, unit)} × ${formatLength(sh, unit)}. Cleat side facing you.</text>` +
+    `<text x="${(pad - 4).toFixed(1)}" y="${(pad + H / 2).toFixed(1)}" font-size="12" font-family="sans-serif" text-anchor="end" fill="#111827">L</text></svg>`;
+  const table = `<table class="pocket-table" data-panel="${escape(title)}"><thead><tr><th>Cleat</th><th>From left end</th><th>From bottom edge</th><th>Size</th></tr></thead><tbody>${rows}</tbody></table>`;
+  return svg + table;
+}
+
 function escape(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }

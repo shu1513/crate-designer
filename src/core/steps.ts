@@ -34,6 +34,8 @@ export interface Step {
   labels?: string[];
   /** Positions printed as a small table under the text (mm from the named reference edge). */
   positions?: { label: string; mm: number }[];
+  /** When set, the figure is this flat panel drawing instead of the crate view. */
+  panel?: { plane: "side" | "end" | "lid" | "floor"; skin: Box; cleats: { id: string; b: Box }[]; title: string };
 }
 
 const GROUPS: Record<number, string> = {
@@ -92,10 +94,12 @@ export function buildSteps(ctx: Ctx): Step[] {
 
   begin(1);
   add({ text: "Lay out all pieces by ID using the cut list.", pieceIds: ids(P), highlight: boxesOf(P), inPlace: [], note: "Note: every piece carries its ID in the drawings." });
+  add({ text: "Mark one end of FP and one end of LP with the letter L.", pieceIds: ["FP", "LP"], tool: "pencil", highlight: [...boxesOf(fp), ...boxesOf(lp)], inPlace: [], note: "Note: every \"from the left end\" in these steps is measured from an L mark, and the lid goes on with its L over the floor's L." });
+  add({ text: "Mark the left end of every cradle board and end stop with the letter L.", pieceIds: [...ids(bottom), ...ids(top), ...ids(stops)], tool: "pencil", highlight: [...boxesOf(bottom), ...boxesOf(top), ...boxesOf(stops)], inPlace: [], note: "Note: the pocket tables measure from this end." });
 
   begin(2);
   for (const b of [...bottom, ...top]) {
-    add({ text: `Cut the pockets in ${b.id} as listed in its pocket table with a handsaw.`, pieceIds: [b.id], tool: "handsaw", highlight: b.placements, inPlace: [], note: "Note: two vertical cuts and one horizontal cut per pocket." });
+    add({ text: `Cut the pockets in ${b.id} as listed in its pocket table with a handsaw.`, pieceIds: [b.id], tool: "handsaw", highlight: b.placements, inPlace: [], note: "Note: two vertical cuts and one horizontal cut per pocket, measured from the L end." });
   }
 
   begin(3);
@@ -105,7 +109,7 @@ export function buildSteps(ctx: Ctx): Step[] {
   add({ text: "Place each bottom cradle board and end stop with its left face on its line, pockets up.", pieceIds: ["FP", ...ids(floorBoards)], highlight: boxesOf(floorBoards), inPlace: boxesOf(fp) });
   add({ text: "Clamp each board to FP.", pieceIds: ["FP", ...ids(floorBoards)], tool: "clamps", highlight: boxesOf(floorBoards), inPlace: boxesOf(fp) });
   add({ text: "Turn FP over with the boards clamped to it.", pieceIds: ["FP"], flip: true, highlight: boxesOf(fp), inPlace: boxesOf(floorBoards) });
-  add({ text: `Drive three ${boardScrew} screws through FP into each board.`, pieceIds: ["FP", ...ids(floorBoards)], screw: boardScrew, tool: "drill driver", highlight: boxesOf(floorBoards), inPlace: boxesOf(fp) });
+  add({ text: `Drive three ${boardScrew} screws through FP into each board, spaced evenly along its line.`, pieceIds: ["FP", ...ids(floorBoards)], screw: boardScrew, tool: "drill driver", highlight: boxesOf(floorBoards), inPlace: boxesOf(fp), note: "Note: aim for the middle of the board's thickness." });
 
   begin(4);
   add({ text: "Stand BF-L and BF-S on edge in a rectangle, long rails outside.", pieceIds: ids(rails), highlight: boxesOf(rails), inPlace: [] });
@@ -135,10 +139,11 @@ export function buildSteps(ctx: Ctx): Step[] {
     { label: "bottom EC-H, from the panel's bottom edge", mm: bottomCleatOffset(crate, "ES", "EC-H") },
     { label: "top EC-H, from the panel's top edge", mm: 0 },
   ];
-  add({ text: "Lay EC-V and EC-H flat on the bench in the end panel pattern at the positions listed below.", pieceIds: ids(ecPerimeter), highlight: ecPerimeter.flatMap(leftEndPanel), inPlace: [], positions: endPattern, note: "Note: shown in the panel's final position; the plywood goes on top of the cleats." });
+  const endPanel = { plane: "end" as const, skin: es.flatMap(leftEndPanel)[0]!, cleats: ec.flatMap((p) => leftEndPanel(p).map((b) => ({ id: p.id, b }))), title: "End panel" };
+  add({ text: "Lay EC-V and EC-H flat on the bench in the end panel pattern at the positions listed below.", pieceIds: ids(ecPerimeter), highlight: ecPerimeter.flatMap(leftEndPanel), inPlace: [], positions: endPattern, panel: endPanel, note: "Note: the drawing shows the panel flat with the cleat side facing you; the plywood goes on top of the cleats." });
   if (ecm.length) {
     const pos = ecm.flatMap(leftEndPanel).map((b, i) => ({ label: `EC-M ${i + 1}`, mm: b.y })).sort((a, b) => a.mm - b.mm);
-    add({ text: "Lay EC-M between them at the positions listed below, from the panel's left end.", pieceIds: ["EC-M"], highlight: ecm.flatMap(leftEndPanel), inPlace: ecPerimeter.flatMap(leftEndPanel), positions: pos });
+    add({ text: "Lay EC-M between them at the positions listed below, from the panel's left end.", pieceIds: ["EC-M"], highlight: ecm.flatMap(leftEndPanel), inPlace: ecPerimeter.flatMap(leftEndPanel), positions: pos, panel: endPanel });
   }
   add({ text: "Set ES on the cleats, inside face up, flush with the outer cleat edges.", pieceIds: ["ES", ...ids(ec)], highlight: es.flatMap(leftEndPanel), inPlace: ec.flatMap(leftEndPanel), labels: ["inside face up"] });
   add({ text: `Screw through ES into each cleat every ${mm(100)} with ${wall} screws.`, pieceIds: ["ES", ...ids(ec)], screw: wall, tool: "drill driver", highlight: ec.flatMap(leftEndPanel), inPlace: es.flatMap(leftEndPanel) });
@@ -151,10 +156,11 @@ export function buildSteps(ctx: Ctx): Step[] {
     { label: "bottom SC-H, from the panel's bottom edge", mm: bottomCleatOffset(crate, "SS", "SC-H") },
     { label: "top SC-H, from the panel's top edge", mm: 0 },
   ];
-  add({ text: "Lay SC-V and SC-H flat on the bench in the side panel pattern at the positions listed below.", pieceIds: ids(scPerimeter), highlight: scPerimeter.flatMap(nearSidePanel), inPlace: [], positions: sidePattern, note: "Note: the bottom SC-H sits one base-frame height up, leaving bare skin over the base rail." });
+  const sidePanel = { plane: "side" as const, skin: ss.flatMap(nearSidePanel)[0]!, cleats: sc.flatMap((p) => nearSidePanel(p).map((b) => ({ id: p.id, b }))), title: "Side panel" };
+  add({ text: "Lay SC-V and SC-H flat on the bench in the side panel pattern at the positions listed below.", pieceIds: ids(scPerimeter), highlight: scPerimeter.flatMap(nearSidePanel), inPlace: [], positions: sidePattern, panel: sidePanel, note: "Note: the bottom SC-H sits one base-frame height up, leaving bare skin over the base rail." });
   if (scm.length) {
     const pos = scm.flatMap(nearSidePanel).map((b, i) => ({ label: `SC-M ${i + 1}`, mm: b.x + w })).sort((a, b) => a.mm - b.mm);
-    add({ text: "Lay SC-M between them at the positions listed below, from the panel's left end.", pieceIds: ["SC-M"], highlight: scm.flatMap(nearSidePanel), inPlace: scPerimeter.flatMap(nearSidePanel), positions: pos });
+    add({ text: "Lay SC-M between them at the positions listed below, from the panel's left end.", pieceIds: ["SC-M"], highlight: scm.flatMap(nearSidePanel), inPlace: scPerimeter.flatMap(nearSidePanel), positions: pos, panel: sidePanel });
   }
   add({ text: "Set SS on the cleats, inside face up, flush with the outer cleat edges.", pieceIds: ["SS", ...ids(sc)], highlight: ss.flatMap(nearSidePanel), inPlace: sc.flatMap(nearSidePanel), labels: ["inside face up"] });
   add({ text: `Screw through SS into each cleat every ${mm(100)} with ${wall} screws.`, pieceIds: ["SS", ...ids(sc)], screw: wall, tool: "drill driver", highlight: sc.flatMap(nearSidePanel), inPlace: ss.flatMap(nearSidePanel) });
@@ -175,7 +181,8 @@ export function buildSteps(ctx: Ctx): Step[] {
     ...byId(P, /^LC-M$/).flatMap((p) => p.placements.map((b, i) => ({ label: `LC-M ${i + 1}, from the left end`, mm: b.x + w }))),
   ];
   add({ text: "Lay LP flat, outside face up.", pieceIds: ["LP"], highlight: boxesOf(lp), inPlace: [], labels: ["outside face up"] });
-  add({ text: `Place ${list(ids(lc))} on LP at the positions listed below.`, pieceIds: ["LP", ...ids(lc)], highlight: boxesOf(lc), inPlace: boxesOf(lp), positions: lcPositions });
+  const lidPanel = { plane: "lid" as const, skin: boxesOf(lp)[0]!, cleats: lc.flatMap((p) => p.placements.map((b) => ({ id: p.id, b }))), title: "Lid, outside face" };
+  add({ text: `Place ${list(ids(lc))} on LP at the positions listed below.`, pieceIds: ["LP", ...ids(lc)], highlight: boxesOf(lc), inPlace: boxesOf(lp), positions: lcPositions, panel: lidPanel });
   add({ text: "Clamp the cleats to LP.", pieceIds: ["LP", ...ids(lc)], tool: "clamps", highlight: boxesOf(lc), inPlace: boxesOf(lp) });
   add({ text: "Turn LP over so it rests on the cleats.", pieceIds: ["LP"], flip: true, highlight: boxesOf(lp), inPlace: boxesOf(lc) });
   add({ text: `Screw through LP into each cleat every ${mm(100)} with ${wall} screws.`, pieceIds: ["LP", ...ids(lc)], screw: wall, tool: "drill driver", highlight: boxesOf(lc), inPlace: boxesOf(lp) });
@@ -184,18 +191,20 @@ export function buildSteps(ctx: Ctx): Step[] {
   add({ text: `Place each top cradle board with its left face on its line, pockets up, ${mm(w)} in from each long edge.`, pieceIds: ["LP", ...ids(top)], highlight: boxesOf(top), inPlace: [...boxesOf(lp), ...boxesOf(lc)] });
   add({ text: "Clamp each board to LP.", pieceIds: ["LP", ...ids(top)], tool: "clamps", highlight: boxesOf(top), inPlace: [...boxesOf(lp), ...boxesOf(lc)] });
   add({ text: "Turn LP over so it rests on the boards.", pieceIds: ["LP", ...ids(top)], flip: true, highlight: boxesOf(lp), inPlace: [...boxesOf(top), ...boxesOf(lc)], note: "Note: put blocks under the lid cleats if the boards differ in height." });
-  add({ text: `Drive three ${boardScrew} screws through LP into each board, clear of the lid cleats.`, pieceIds: ["LP", ...ids(top)], screw: boardScrew, tool: "drill driver", highlight: boxesOf(top), inPlace: [...boxesOf(lp), ...boxesOf(lc)] });
+  add({ text: `Drive three ${boardScrew} screws through LP into each board, spaced evenly, clear of the lid cleats.`, pieceIds: ["LP", ...ids(top)], screw: boardScrew, tool: "drill driver", highlight: boxesOf(top), inPlace: [...boxesOf(lp), ...boxesOf(lc)], note: "Note: aim for the middle of the board's thickness." });
 
   begin(10);
   const partBoxes = layout.partOrigins.map((o) => ({ x: o.x, y: o.y, z: o.z, dx: frame.L, dy: frame.W, dz: frame.H }));
   add({ text: `If the part has finished surfaces, line each pocket with felt no thicker than ${mm(2)}.`, pieceIds: ids(bottom), highlight: boxesOf(bottom), inPlace: [...placed] });
-  add({ text: "Lower each part into its pockets.", pieceIds: ids(bottom), highlight: [], parts: partBoxes, inPlace: [...placed] });
+  const pocketWidths = bottom.map((b) => b.cutouts[0]?.dy ?? 0);
+  const oneWay = Math.max(...pocketWidths) - Math.min(...pocketWidths) > 1;
+  add({ text: "Lower each part into its pockets.", pieceIds: ids(bottom), highlight: [], parts: partBoxes, inPlace: [...placed], note: oneWay ? "Note: the part fits one way round only; its widest section goes in the widest pocket." : "Note: all pockets are the same width, so either way round is fine." });
   add({ text: "Measure the gap on both sides of each bottom pocket.", pieceIds: ids(bottom), tool: "tape", highlight: boxesOf(bottom), parts: partBoxes, inPlace: [...placed] });
   add({ text: `If a gap is over ${mm(CLEARANCE.shimThreshold)}, cut a wood strip to fill it.`, pieceIds: ids(bottom), tool: "handsaw", highlight: boxesOf(bottom), parts: partBoxes, inPlace: [...placed] });
   add({ text: `Screw each strip to the pocket wall with two ${wall} screws.`, pieceIds: ids(bottom), screw: wall, tool: "drill driver", highlight: boxesOf(bottom), parts: partBoxes, inPlace: [...placed], note: "Note: top pockets cannot be checked after closing; the pocket table is their check." });
 
   begin(11);
-  add({ text: "Lower the lid so the top cradles sit over the parts.", pieceIds: ["LP", ...ids(top), ...ids(lc)], highlight: [...boxesOf(lp), ...boxesOf(top), ...boxesOf(lc)], parts: partBoxes, inPlace: [...placed] });
+  add({ text: "Lower the lid, L mark over the floor's L mark, so the top cradles sit over the parts.", pieceIds: ["LP", ...ids(top), ...ids(lc)], highlight: [...boxesOf(lp), ...boxesOf(top), ...boxesOf(lc)], parts: partBoxes, inPlace: [...placed] });
   add({ text: `Screw the lid down into the top wall cleats every ${mm(100)} with ${frameScrew} screws.`, pieceIds: ["LP", "SC-H", "EC-H"], screw: frameScrew, tool: "drill driver", highlight: boxesOf(lp), inPlace: [...placed, ...boxesOf(top), ...boxesOf(lc)], note: "Note: drive them in the bare band of LP outside the lid cleats." });
   return steps;
 }

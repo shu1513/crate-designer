@@ -108,6 +108,19 @@ describe("R18, R11: drawings", () => {
     expect(stepSvg(lay, label)).toContain("inside face up");
   });
 
+  it("drawings escape every string that comes from a record, so an imported file cannot inject markup", () => {
+    const d = designFromPart(shaftLike(), inputs(1, 27));
+    const hostile = { ...d.steps[0]!, id: '1a" onload="alert(1)', text: "Lay <b>out</b> & go." };
+    const svg = stepSvg(hostile, () => '<img src=x onerror=alert(1)>');
+    expect(svg).not.toContain('onload="alert');
+    expect(svg).toContain("data-step=\"1a&quot; onload=&quot;alert(1)\"");
+    expect(svg).not.toContain("<img");
+    const board = { ...d.crate.pieces.find((p) => p.id === "BC-1")!, id: 'BC-1"><script>x</script>' };
+    const out = boardSvg(board, "mm");
+    expect(out).not.toContain("<script>");
+    expect(out).toContain("&lt;script&gt;");
+  });
+
   it("T-R11: each cradle board drawing has a pocket table with one row per pocket and positive numbers", () => {
     const d = designFromPart(shaftLike(), inputs(4, 27));
     const boards = d.crate.pieces.filter((p) => /^(BC|TC)-/.test(p.id));

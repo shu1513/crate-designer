@@ -90,6 +90,9 @@ export function DesignInputs({ disabled, busy, onDesign, onChange, unit, suggest
       <button className="primary" disabled={disabled || busy || !quantityOk || !weightOk} onClick={() => onDesign(quantity, weightKg)}>
         {busy ? "Designing…" : "Design crate"}
       </button>
+      {!busy && (disabled || !quantityOk || !weightOk) && (
+        <span className="hint">{disabled ? "Add a part file first (step 1)." : !weightOk ? "Enter the weight of one part." : "Enter a whole-number quantity, 1 or more."}</span>
+      )}
     </div>
   );
 }

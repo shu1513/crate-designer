@@ -16,8 +16,15 @@ interface ResultsProps {
 
 export function Results({ design, recordId, problems = [], onReportProblem }: ResultsProps) {
   const [tab, setTab] = useState<Tab>("summary");
+  const u = useUnits();
+  const { outer, skids } = design.crate;
   return (
     <div className="results">
+      <div className="verdict no-print">
+        <strong>Crate {u.size(outer.L, outer.W, outer.H)}</strong>{skids ? `, ${skids} skids` : ", no skids"}, {design.crate.pieces.length} kinds of piece, about {u.kg(design.woodKg)} of wood.
+        {recordId ? ` Saved as ${recordId}.` : ""}
+        <button className="link" onClick={() => window.print()}>Print the build package</button>
+      </div>
       <nav className="tabs no-print">
         {(["summary", "cutlist", "fasteners", "steps"] as Tab[]).map((t) => (
           <button key={t} className={t === tab ? "active" : ""} onClick={() => setTab(t)}>
@@ -29,7 +36,7 @@ export function Results({ design, recordId, problems = [], onReportProblem }: Re
         {tab === "summary" && <Summary design={design} recordId={recordId} problems={problems} />}
         {tab === "cutlist" && <CutList design={design} />}
         {tab === "fasteners" && <Fasteners design={design} />}
-        {tab === "steps" && <Steps design={design} problems={problems} onReportProblem={onReportProblem} />}
+        {tab === "steps" && <Steps design={design} problems={problems} onReportProblem={onReportProblem} checklist />}
       </div>
       {/* Print package (SPEC R19): summary, cut list, fasteners, board drawings, steps. */}
       <div className="print-only print-package">
@@ -134,20 +141,27 @@ export function Boards({ design }: { design: Design }) {
   );
 }
 
-export function Steps({ design, problems = [], onReportProblem }: { design: Design; problems?: ProblemMark[]; onReportProblem?: (stepId: string) => void }) {
+export function Steps({ design, problems = [], onReportProblem, checklist = false }: { design: Design; problems?: ProblemMark[]; onReportProblem?: (stepId: string) => void; checklist?: boolean }) {
   const u = useUnits();
+  const [done, setDone] = useState<Set<string>>(new Set());
   const labelFor = (b: Box) => design.crate.pieces.find((p) => p.placements.some((q) => q.x === b.x && q.y === b.y && q.z === b.z))?.id;
+  const toggle = (id: string) => setDone((d) => { const n = new Set(d); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   let lastGroup = 0;
   return (
+    <>
+    {checklist && (
+      <p className="progress">{done.size} of {design.steps.length} steps ticked off. Tick a step when it is done; the list is for this screen only, the printout has no ticks.</p>
+    )}
     <ol className="steps">
       {design.steps.map((s) => {
         const heading = s.group !== lastGroup ? <h3>{s.group}. {s.groupTitle}</h3> : null;
         lastGroup = s.group;
         return (
-          <li key={s.id} className="step">
+          <li key={s.id} className={done.has(s.id) ? "step done" : "step"}>
             {heading}
             <div className="step-row">
               <div className="step-text">
+                {checklist && <input type="checkbox" className="tick" checked={done.has(s.id)} onChange={() => toggle(s.id)} aria-label={`Step ${s.id} done`} />}
                 <strong>{s.id}</strong> {u.text(s.text)}
                 {s.positions && (
                   <table className="positions"><tbody>{s.positions.map((p) => <tr key={p.label + p.mm}><td>{p.label}</td><td>{u.len(p.mm)}</td></tr>)}</tbody></table>
@@ -163,5 +177,6 @@ export function Steps({ design, problems = [], onReportProblem }: { design: Desi
         );
       })}
     </ol>
+    </>
   );
 }

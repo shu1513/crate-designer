@@ -31,6 +31,8 @@ export function App() {
   const [view, setView] = useState<"design" | "history">("design");
   const [readOnly, setReadOnly] = useState(false);
   const [viewKey, setViewKey] = useState(0); // bumping it re-frames the 3D view
+  const [openError, setOpenError] = useState<string | null>(null);
+  const [openedFile, setOpenedFile] = useState<string | null>(null);
   // Bumped on every input change; worker replies from an older revision are ignored (R23).
   const revision = useRef(0);
   const invalidate = () => { revision.current++; setDesign(null); setDesignError(null); setRecordId(null); setSaveWarning(null); setProblems([]); setReadOnly(false); };
@@ -106,13 +108,14 @@ export function App() {
       setRecordId(rec.id);
       setProblems(rec.problems);
       setReadOnly(true);
+      setOpenedFile(rec.glbName);
       setDesignError(null);
+      setOpenError(null);
       setSaveWarning(null);
       setView("design");
       if (andPrint) setTimeout(() => window.print(), 400); // let the page render first
     } catch (err) {
-      setDesignError(`Could not open ${id}: ${(err as Error).message}`);
-      setView("design");
+      setOpenError(`Could not open ${id}: ${(err as Error).message}`);
     }
   }
 
@@ -147,19 +150,18 @@ export function App() {
           </section>
           <section className={`step-section ${!part ? "" : design ? "done" : "current"}`}>
             <h2><span className="num">2</span> How many, and how heavy <span className="state">{design ? "done" : ""}</span></h2>
-            <DesignInputs disabled={!part || readOnly} busy={busy} unit={unit} onDesign={runDesign} onChange={invalidate} suggested={part?.match ? { id: part.match.id, weightKg: part.match.massKg, quantities: part.match.suggestedQuantities } : null} />
+            <DesignInputs disabled={!part || readOnly} busy={busy} unit={unit} onDesign={runDesign} onChange={invalidate} partKey={part ? `${part.fileName}:${part.bytes.byteLength}` : null} suggested={part?.match ? { id: part.match.id, weightKg: part.match.massKg, quantities: part.match.suggestedQuantities } : null} />
           </section>
           <section className={`step-section ${design ? "current" : ""}`}>
             <h2><span className="num">3</span> Print and build</h2>
             {design && recordId && <p className="status">Saved as <strong>{recordId}</strong>. This ID is printed on every page.</p>}
             {design && !recordId && saveWarning && <p className="warning">{saveWarning} The design still works and prints.</p>}
-            <button className="secondary" disabled={!design} onClick={() => window.print()}>Print the build package</button>
+            <button className="secondary" disabled={!design || view === "history"} onClick={() => window.print()} title={view === "history" ? "Go back to the design to print it" : undefined}>Print the build package</button>
             <button className="secondary" onClick={() => setView(view === "history" ? "design" : "history")}>{view === "history" ? "Back to the design" : "Past designs (History)"}</button>
-            {readOnly && <p className="status">Showing saved design {recordId} exactly as it was saved. Drop a part file to start a new design.</p>}
+            {readOnly && design && <p className="status">Showing saved design <strong>{recordId}</strong> exactly as it was saved: {openedFile}, {design.inputs.quantity} × {design.inputs.weightKg} kg. Drop a part file to start a new design.</p>}
           </section>
-          <p className="status muted">
-            Service: {health ? `ok (v${health.version})` : healthError ? `unreachable (${healthError})` : "checking…"}
-          </p>
+          {healthError && <p className="warning">The local service is not answering ({healthError}). Designs still work but will not be saved to History.</p>}
+          {health && <span className="sr-only">Service ok, version {health.version}</span>}
         </aside>
         <main className="column preview no-print">
           {(design || partPositions) && (
@@ -170,15 +172,16 @@ export function App() {
               <span className="legend"><i className="sw part" /> your part <i className="sw ply" /> plywood <i className="sw lumber" /> lumber and boards</span>
             </div>
           )}
-          {(design || partPositions) ? <Preview3D key={viewKey} design={design} partPositions={partPositions} hideLid={hideLid} hideWalls={hideWalls} /> : <p className="muted">The 3D view of your part, and then of the crate around it, appears here. Drag to turn it, scroll to zoom.</p>}
-          {design && <p className="muted size-line">Outside size {Math.round(design.crate.outer.L)} × {Math.round(design.crate.outer.W)} × {Math.round(design.crate.outer.H)} mm{design.crate.skids ? " including skids" : ""}. Drag to turn, scroll to zoom.</p>}
+          {(design || partPositions) ? <Preview3D key={viewKey} design={design} partPositions={partPositions} hideLid={hideLid} hideWalls={hideWalls} /> : <p className="muted">The 3D view of your part, and then of the crate around it, appears here.</p>}
+          {(design || partPositions) && <p className="muted size-line">Drag to turn, scroll to zoom.</p>}
         </main>
         <section className="column results-column">
+          {view === "history" && openError && <p className="error">{openError}</p>}
           {view === "history" && <History onOpen={(id) => void openRecord(id)} onReprint={(id) => void openRecord(id, true)} />}
           {view === "design" && designError && <div className="error-box"><strong>Cannot design a crate for this input</strong><p>{designError}</p></div>}
           {view === "design" && !designError && !design && <p className="muted no-print">The overview, pieces to cut, screws, and build steps appear here after you press Design crate.</p>}
           {view === "design" && saveWarning && <p className="warning no-print">{saveWarning}</p>}
-          {view === "design" && design && <Results design={design} recordId={recordId} problems={problems} onReportProblem={recordId ? reportProblem : undefined} />}
+          {view === "design" && design && <Results design={design} recordId={recordId} fileName={readOnly ? openedFile : part?.fileName ?? null} problems={problems} onReportProblem={recordId ? reportProblem : undefined} />}
         </section>
       </div>
     </UnitContext.Provider>

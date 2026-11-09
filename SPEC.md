@@ -117,7 +117,7 @@ Structure
 - R17. The app reports outer crate dimensions (L × W × H), inner cavity dimensions, estimated wood weight (formula in 5.5), and estimated gross weight = net + wood.
 
 Instructions and output
-- R18. The build steps are numbered, in the order in 5.6, each with one line drawing (SVG) and plain text of at most 3 sentences. Every step names the piece IDs it uses and where each piece goes (measured from a named reference edge).
+- R18. The build steps follow the order in 5.6. Each printed step is one action: one sentence that starts with a verb and has at most 20 words, optionally followed by one "Note:" sentence. Each step names the piece IDs it uses, where each piece goes (measured from a named reference edge), and the exact screw size and tool when fastening. Each step has one line drawing (SVG) from the same fixed viewpoint: pieces already in place in gray, pieces added in this step highlighted, "inside face" and "top" labelled where it matters, and a turn arrow whenever a panel is flipped. Conditional actions (shim, line a pocket) are numbered steps that start with "If".
 - R19. "Print" produces a paper package in the page order of 5.6 with no cut-off content on A4 or US Letter.
 - R20. The mm/in toggle switches every displayed and printed number, including weights (kg to lb) and pocket tables, with no re-upload. Internal values never change; only display rounding does.
 
@@ -271,7 +271,7 @@ Cut list: SK 2 × 38×89×1632; BF-L 2 × 19×64×1632; BF-S 2 × 19×64×298; B
 
 ### 5.6 Build steps and print package
 
-Step order (R18). The list below is the order; the count may change if a step is empty (for example no skids). Each step has an SVG drawing showing the pieces added in that step highlighted, the rest gray, with the position of each new piece dimensioned from a named reference edge.
+Step order (R18). The list below gives the groups in order; each group prints as numbered one-action steps (3a, 3b, ...). A group is skipped if it is empty (for example no skids). Each step has an SVG drawing showing the pieces added in that step highlighted, the rest gray, with the position of each new piece dimensioned from a named reference edge.
 1. Cut list check: lay out all pieces by ID (drawing: all pieces labeled).
 2. Cut the pockets: for each cradle board, mark each pocket from the board's left end using the pocket table, then make two vertical saw cuts and one horizontal cut per pocket.
 3. Mark station lines on the floor panel FP. Place bottom cradles BC-n and end stops EB on the lines, flip the panel, and screw up through FP into each board (nothing is under the panel yet, so every screw position is reachable).
@@ -281,7 +281,7 @@ Step order (R18). The list below is the order; the count may change if a step is
 7. Build the two side panels flat: SS skin with SC-V, SC-H, SC-M cleats.
 8. Stand the end panels on FP between the side panels. Screw corners (side cleat through side skin into end cleat), then screw all four bottom cleats down into the base.
 9. Build the lid: LP with LC-L, LC-S, LC-M on top; TC-n on the underside at station lines.
-10. If the part has finished surfaces, line each pocket with a felt or carpet strip. Place parts in the bottom cradles. Check gaps at each bottom pocket: any gap larger than 6 mm gets a wood shim. (R12) Top pockets cannot be checked after closing; cut them carefully.
+10. Load the parts: (a) If the part has finished surfaces, line each pocket with felt or carpet no thicker than 2 mm. (b) Lower each part into its pockets. (c) Measure the gap at both sides of each bottom pocket. (d) If a gap is larger than 6 mm, cut a wood strip to fill it and screw the strip to the pocket wall. (R12) Note: top pockets cannot be checked after closing; the pocket table is the check.
 11. Fit lid and screw down with wall screws every 100 mm.
 
 Print package order (R19): page 1 summary (inputs, tier, outer and inner size, weights, date); page 2+ cut list; fastener list; cradle board drawings with their pocket tables; then one step per half page. Print CSS hides the 3D view and inputs.
@@ -393,7 +393,8 @@ Unit tests run on the three sample files plus synthetic meshes. Each test is nam
 - T-R15: every piece ID appears in ≥ 1 step; every piece has positive dimensions and a material.
 - T-R16: fastener list contains only screws; counts are multiples of 10 and ≥ the computed minimum; every screw length is ≥ 25 mm and ≤ the two thicknesses it joins.
 - T-R17: PART-002 × 1 → outer 1632 × 336 × 414 mm including skids, inner 1574 × 278 × 222 mm, wood 30 ± 3 kg. PART-003 × 1 (11.8 kg, all dimensions under 1524 mm) → no skids.
-- T-R18: steps follow the order of 5.6; each has non-empty SVG, ≤ 3 sentences, and a position for every new piece.
+- T-R18: steps follow the order of 5.6; every step's first sentence starts with a verb and has ≤ 20 words; at most one extra sentence and it starts with "Note:"; conditional steps start with "If"; every fastening step names a screw size from the tier table; each step has a non-empty SVG and a position for every new piece.
+- T-R18b (manual acceptance): a person who has not seen the app builds the PART-001 × 1 crate from the printout alone. Record wrong or reversed pieces, missed fasteners, and questions asked. Pass = zero wrong pieces and zero questions that the printout should have answered; otherwise fix the step text or drawing and repeat.
 - T-R19: manual: print to PDF on Letter and A4; inspect no clipped tables or drawings.
 - T-R20: toggle to inches; the PART-002 outer length shows 64 1/4 in and weight 27 kg shows 59.5 lb; toggle back shows 1632 mm and 27 kg.
 - T-R21: each E1–E6, E8, and E10 input shows the exact message and the design area is empty. E7 (a 30 m part) and E9 (service stopped) show a warning and the design remains, with Print enabled.
@@ -420,8 +421,8 @@ Each task names input, output, and done check. Language per D23. Tasks run in or
 5. **Slicing and pockets.** Input: triangles, stations, c. Output: station search result, slab extents, equators, seated rectangular `Pocket` list. Done: T-R8 passes; a synthetic stepped cylinder gives two pocket widths and level pocket floors.
 6. **Crate geometry, skids, fasteners, weights.** Input: layout, pockets, tier. Output: full `Piece` list per 5.5 table with positions, end-stop heights, skid decision (two-pass), `Fastener` list, wood and gross weight, outer size, E10 guard. Done: T-R9, T-R15, T-R16, T-R17 pass on the worked example.
 7. **Geometry checks.** Input: part mesh, piece solids. Output: pass/fail for ±2 and ±6 mm translations and for wood-to-wood and wood-to-part overlap. Done: T-R10 and T-R24 pass on all three samples.
-8. **Steps generator.** Input: `Design`. Output: `Step` objects in 5.6 order with text, piece IDs, and positions (SVG placeholder). Done: T-R18 text checks, T-R12 pass.
-9. **SVG drawings.** Input: `Design`, step. Output: one SVG per step (orthographic exploded view, added pieces highlighted) and one per cradle board with its pocket table. Done: T-R11, T-R18 SVG non-empty; visual check of PART-002 steps.
+8. **Steps generator.** Input: `Design`. Output: one-action `Step` objects in 5.6 group order with text that follows the R18 rules (verb first, ≤ 20 words, screw size and tool named, conditionals start with "If"), piece IDs, and positions (SVG placeholder). Done: T-R18 text checks, T-R12 pass.
+9. **SVG drawings.** Input: `Design`, step. Output: one SVG per step (fixed viewpoint, in-place pieces gray, added pieces highlighted, "inside face"/"top" labels, turn arrow on flips, dimensions from named edges) and one per cradle board with its pocket table. Done: T-R11, T-R18 SVG non-empty; visual check of PART-002 steps; T-R18b run once before the demo.
 10. **Inputs UI and errors.** Input: user events. Output: validation, E1–E8 and E10 messages, "Design crate" gating, design invalidation on input change. Done: T-R2, T-R3, T-R21, T-R23 pass.
 11. **3D preview.** Input: `Design`. Output: WebGL view with part and pieces, hide lid/walls toggles, graceful fallback. Done: manual check on three samples; fallback text with WebGL disabled.
 12. **Units toggle.** Input: display unit. Output: every number re-rendered, fractions to 1/16 in. Done: T-R20 passes.

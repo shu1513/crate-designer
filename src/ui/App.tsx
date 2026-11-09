@@ -138,7 +138,7 @@ export function App() {
             <button className={unit === "in" ? "active" : ""} onClick={() => setUnit("in")}>in</button>
           </div>
           <PartInput onLoaded={onPartLoaded} onChanging={invalidate} />
-          <DesignInputs disabled={!part} busy={busy} unit={unit} onDesign={runDesign} onChange={invalidate} />
+          <DesignInputs disabled={!part} busy={busy} unit={unit} onDesign={runDesign} onChange={invalidate} suggested={part?.match ? { id: part.match.id, weightKg: part.match.massKg, quantities: part.match.suggestedQuantities } : null} />
           <button className="secondary" disabled={!design} onClick={() => window.print()}>Print</button>
           <button className="secondary" onClick={() => setView(view === "history" ? "design" : "history")}>{view === "history" ? "Back to design" : "History"}</button>
           {readOnly && <p className="status">Showing saved design {recordId}. Press Design crate for a new one.</p>}

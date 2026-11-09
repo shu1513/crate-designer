@@ -153,12 +153,12 @@ export function App() {
               <label><input type="checkbox" checked={hideWalls} onChange={(e) => setHideWalls(e.target.checked)} /> Hide walls</label>
             </div>
           )}
-          {(design || partPositions) ? <Preview3D design={design} partPositions={partPositions} hideLid={hideLid} hideWalls={hideWalls} /> : <p className="muted">Drop a part file to see it here.</p>}
+          {(design || partPositions) ? <Preview3D design={design} partPositions={partPositions} hideLid={hideLid} hideWalls={hideWalls} /> : <p className="muted">The 3D view of your part, and then of the crate around it, appears here.</p>}
         </main>
         <section className="column results-column">
           {view === "history" && <History onOpen={(id) => void openRecord(id)} />}
           {view === "design" && designError && <div className="error-box"><strong>Cannot design a crate for this input</strong><p>{designError}</p></div>}
-          {view === "design" && !designError && !design && <p className="muted no-print">Load a part, enter quantity and weight, then press Design crate.</p>}
+          {view === "design" && !designError && !design && <p className="muted no-print">The overview, pieces to cut, screws, and build steps appear here after you press Design crate.</p>}
           {view === "design" && saveWarning && <p className="warning no-print">{saveWarning}</p>}
           {view === "design" && design && <Results design={design} recordId={recordId} problems={problems} onReportProblem={recordId ? reportProblem : undefined} />}
         </section>

@@ -154,7 +154,7 @@ export function Steps({ design, problems = [], onReportProblem, checklist = fals
     {checklist && (
       <p className="progress">{done.size} of {design.steps.length} done. Tick each step as you finish it.</p>
     )}
-    <ol className="steps">
+    <ol className={checklist ? "steps checklist" : "steps"}>
       {design.steps.map((s) => {
         const heading = s.group !== lastGroup ? <h3>{s.group}. {s.groupTitle}</h3> : null;
         lastGroup = s.group;

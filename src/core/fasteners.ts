@@ -71,7 +71,7 @@ export function countFasteners(crate: Crate, restraint: Restraint, tier: Tier): 
   }
   wallUses.push("skins and lid panel to cleats");
   wall += 2 * perRun(L, SKIN_PITCH) + 2 * perRun(W, SKIN_PITCH); wallUses.push("skins to base rails");
-  wall += perRun(2 * (L + W), EDGE_PITCH); wallUses.push("FP to base rails");
+  wall += 2 * perRun(L, EDGE_PITCH); wallUses.push("FP to the long rails"); // the end rails sit under the end stops
   const wallLen = wallScrewLength(t, c);
 
   // Frame screws (lumber to lumber, or through the lid into the top wall cleats): wall corners through
@@ -84,11 +84,11 @@ export function countFasteners(crate: Crate, restraint: Restraint, tier: Tier): 
   frame += perRun(2 * (crate.outer.L + crate.outer.W), SKIN_PITCH); frameUses.push("lid closure into the top wall cleats");
   const frameLen = parseLength(tier.frameScrew);
 
-  // Board screws (through the floor or lid panel into a board's edge): about 45 mm of bite is plenty,
-  // and never more than the shortest board can take.
+  // Board screws go into each board's solid webs (beside and between the pockets), which are full height,
+  // so the length only needs to fit the shortest board; about 45 mm of bite is plenty.
   const boards = [...restraint.bottomBoards, ...restraint.topBoards, ...restraint.endStops];
   const shortest = Math.min(...boards.map((b) => b.height));
-  const boardScrews = 3 * boards.length;
+  const boardScrews = boards.reduce((n, b) => n + Math.max(3, b.pockets.length + 1), 0);
   const boardLen = fitStock(t + Math.min(shortest, 45));
   // Corner screws: through the side cleat (c) and side skin (t) into the end cleat's d-wide face.
   const cornerScrews = 4 * perRun(wallHeight, SKIN_PITCH);

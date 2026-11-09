@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { DesignError } from "../src/core/errors.ts";
 import { loadPart, MAX_TRIANGLES } from "../src/core/part.ts";
 import { parseGlb } from "../src/core/glb.ts";
-import { buildGlb } from "./helpers/glb.ts";
+import { buildGlb, patchGlbJson } from "./helpers/glb.ts";
 
 const SAMPLES = "samples";
 const samplesPresent = existsSync(`${SAMPLES}/parts.json`);
@@ -102,6 +102,16 @@ describe("Section 6: errors and warnings", () => {
     const bad = good.slice(0);
     new DataView(bad).setUint32(0, 0x12345678, true);
     expect(code(() => loadPart(bad, { modelUnits: "m", upAxis: "Z" }))).toBe("E1");
+  });
+
+  it("E1: external buffers, truncated buffer views, and sparse accessors are refused", () => {
+    const good = buildGlb([{ size: [1, 1, 1] }]);
+    const opts = { modelUnits: "m" as const, upAxis: "Z" as const };
+    expect(loadPart(good, opts).triangleCount).toBe(12);
+    type J = { buffers: { uri?: string }[]; bufferViews: { byteLength: number }[]; accessors: { sparse?: object }[] };
+    expect(code(() => loadPart(patchGlbJson(good, (j) => { (j as unknown as J).buffers[0]!.uri = "data.bin"; }), opts))).toBe("E1");
+    expect(code(() => loadPart(patchGlbJson(good, (j) => { (j as unknown as J).bufferViews[0]!.byteLength = 8; }), opts))).toBe("E1");
+    expect(code(() => loadPart(patchGlbJson(good, (j) => { (j as unknown as J).accessors[0]!.sparse = { count: 1 }; }), opts))).toBe("E1");
   });
 
   it("E1: a model with no triangles is refused", () => {

@@ -22,6 +22,7 @@ interface GltfJson {
   meshes?: { primitives: GltfPrimitive[] }[];
   accessors?: GltfAccessor[];
   bufferViews?: { buffer: number; byteOffset?: number; byteLength: number; byteStride?: number }[];
+  buffers?: { byteLength: number; uri?: string }[];
   extensionsRequired?: string[];
 }
 interface GltfNode {
@@ -84,6 +85,8 @@ export function parseGlb(bytes: ArrayBuffer): GlbMesh {
   }
   if (!json || !bin) fail();
   if (json.extensionsRequired?.some((e) => /draco|meshopt|quantization/i.test(e))) fail();
+  // A .glb carries exactly one embedded buffer (index 0, no uri). External buffers cannot be read here.
+  if (!json.buffers?.[0] || json.buffers[0].uri !== undefined) fail();
 
   const sceneIndex = json.scene ?? 0;
   const scene = json.scenes?.[sceneIndex];
@@ -152,16 +155,28 @@ function readPrimitive(json: GltfJson, bin: ArrayBuffer, prim: GltfPrimitive, wo
 
 type TypedCtor<T> = { new (buffer: ArrayBuffer, byteOffset: number, length: number): T; BYTES_PER_ELEMENT: number };
 
+/** Validates a bufferView/accessor pair and returns the absolute byte offset of element 0. */
+function accessorBase(json: GltfJson, bin: ArrayBuffer, acc: GltfAccessor, elementSize: number, stride: number): number {
+  const bv = json.bufferViews?.[acc.bufferView ?? -1];
+  if (!bv || bv.buffer !== 0) fail();
+  const viewStart = bv.byteOffset ?? 0;
+  if (viewStart + bv.byteLength > bin.byteLength) fail();
+  const inView = (acc.byteOffset ?? 0) + (acc.count - 1) * stride + elementSize;
+  if (acc.count < 1 || inView > bv.byteLength) fail();
+  return viewStart + (acc.byteOffset ?? 0);
+}
+
 function readAccessor(json: GltfJson, bin: ArrayBuffer, index: number, components: number, Ctor: TypedCtor<Float32Array>): Float32Array {
   const acc = json.accessors?.[index];
   if (!acc || acc.sparse || acc.bufferView === undefined || acc.componentType !== 5126) fail();
   const bv = json.bufferViews?.[acc.bufferView];
   if (!bv) fail();
-  const base = (bv.byteOffset ?? 0) + (acc.byteOffset ?? 0);
-  const stride = bv.byteStride ?? components * Ctor.BYTES_PER_ELEMENT;
+  const elementSize = components * Ctor.BYTES_PER_ELEMENT;
+  const stride = bv.byteStride ?? elementSize;
+  const base = accessorBase(json, bin, acc, elementSize, stride);
   const out = new Float32Array(acc.count * components);
-  if (stride === components * Ctor.BYTES_PER_ELEMENT) {
-    if (base % 4 !== 0 || base + acc.count * stride > bin.byteLength) fail();
+  if (stride === elementSize) {
+    if (base % 4 !== 0) fail();
     out.set(new Ctor(bin, base, acc.count * components));
     return out;
   }
@@ -181,13 +196,12 @@ function readIndexAccessor(json: GltfJson, bin: ArrayBuffer, index: number): Arr
   if (!acc || acc.sparse || acc.bufferView === undefined || acc.type !== "SCALAR") fail();
   const bv = json.bufferViews?.[acc.bufferView];
   if (!bv) fail();
-  const base = (bv.byteOffset ?? 0) + (acc.byteOffset ?? 0);
-  const dv = new DataView(bin);
-  const out = new Uint32Array(acc.count);
   const size = acc.componentType === 5121 ? 1 : acc.componentType === 5123 ? 2 : acc.componentType === 5125 ? 4 : 0;
   if (size === 0) fail();
   const stride = bv.byteStride ?? size;
-  if (base + (acc.count - 1) * stride + size > bin.byteLength) fail();
+  const base = accessorBase(json, bin, acc, size, stride);
+  const dv = new DataView(bin);
+  const out = new Uint32Array(acc.count);
   for (let i = 0; i < acc.count; i++) {
     const at = base + i * stride;
     out[i] = size === 1 ? dv.getUint8(at) : size === 2 ? dv.getUint16(at, true) : dv.getUint32(at, true);

@@ -125,6 +125,28 @@ export function buildGlb(meshes: TestMesh[], options: { scene?: number; extraSce
   return out;
 }
 
+/** Rewrites the JSON chunk of a GLB (for malformed-file tests); BIN chunk is kept as is. */
+export function patchGlbJson(glb: ArrayBuffer, patch: (json: Record<string, unknown>) => void): ArrayBuffer {
+  const dv = new DataView(glb);
+  const jsonLength = dv.getUint32(12, true);
+  const json = JSON.parse(new TextDecoder().decode(new Uint8Array(glb, 20, jsonLength))) as Record<string, unknown>;
+  patch(json);
+  let jsonBytes: Uint8Array = new TextEncoder().encode(JSON.stringify(json));
+  while (jsonBytes.length % 4 !== 0) jsonBytes = concat(jsonBytes, new Uint8Array([0x20]));
+  const rest = new Uint8Array(glb, 20 + jsonLength); // BIN chunk header + data
+  const total = 20 + jsonBytes.length + rest.length;
+  const out = new ArrayBuffer(total);
+  const odv = new DataView(out);
+  const u8 = new Uint8Array(out);
+  u8.set(new Uint8Array(glb, 0, 12), 0);
+  odv.setUint32(8, total, true);
+  odv.setUint32(12, jsonBytes.length, true);
+  odv.setUint32(16, 0x4e4f534a, true);
+  u8.set(jsonBytes, 20);
+  u8.set(rest, 20 + jsonBytes.length);
+  return out;
+}
+
 function concat(a: Uint8Array, b: Uint8Array): Uint8Array {
   const out = new Uint8Array(a.length + b.length);
   out.set(a, 0);

@@ -1,4 +1,4 @@
-import { useState, type ChangeEvent, type DragEvent } from "react";
+import { useRef, useState, type ChangeEvent, type DragEvent } from "react";
 import type { ModelUnits, UpAxis } from "../core/part.ts";
 import type { PartSummary } from "../worker/protocol.ts";
 import { designWorker } from "../worker/client.ts";
@@ -22,20 +22,32 @@ export function PartInput({ onLoaded }: Props) {
   const [summary, setSummary] = useState<PartSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const loadSeq = useRef(0);
 
   async function load(name: string, data: ArrayBuffer, units: ModelUnits, up: UpAxis) {
+    const seq = ++loadSeq.current;
     setBusy(true);
     setError(null);
-    // The worker takes ownership of a copy so the original stays available for re-measuring.
-    const res = await designWorker.send({ type: "loadPart", bytes: data.slice(0), modelUnits: units, upAxis: up });
-    setBusy(false);
-    if (res.type === "partLoaded") {
-      setSummary(res.summary);
-      onLoaded({ fileName: name, bytes: data, summary: res.summary });
-    } else {
+    // The worker takes ownership of a copy (transferred, no second copy) so the original stays for re-measuring.
+    const copy = data.slice(0);
+    try {
+      const res = await designWorker.send({ type: "loadPart", bytes: copy, modelUnits: units, upAxis: up }, [copy]);
+      if (seq !== loadSeq.current) return; // a newer load superseded this one
+      if (res.type === "partLoaded") {
+        setSummary(res.summary);
+        onLoaded({ fileName: name, bytes: data, summary: res.summary });
+      } else {
+        setSummary(null);
+        setError(res.message);
+        onLoaded(null);
+      }
+    } catch (err) {
+      if (seq !== loadSeq.current) return;
       setSummary(null);
-      setError(res.message);
+      setError(`The measuring step failed: ${(err as Error).message}`);
       onLoaded(null);
+    } finally {
+      if (seq === loadSeq.current) setBusy(false);
     }
   }
 

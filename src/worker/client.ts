@@ -34,7 +34,12 @@ class DesignWorkerClient {
     const full = { ...request, id } as WorkerRequest;
     return new Promise((resolve, reject) => {
       this.pending.set(id, { resolve, reject });
-      this.ensure().postMessage(full, transfer);
+      try {
+        this.ensure().postMessage(full, transfer);
+      } catch (err) {
+        this.pending.delete(id);
+        reject(err instanceof Error ? err : new Error(String(err)));
+      }
     });
   }
 }

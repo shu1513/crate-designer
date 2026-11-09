@@ -21,7 +21,7 @@ export function Results({ design, recordId, problems = [], onReportProblem }: Re
       <nav className="tabs no-print">
         {(["summary", "cutlist", "fasteners", "steps"] as Tab[]).map((t) => (
           <button key={t} className={t === tab ? "active" : ""} onClick={() => setTab(t)}>
-            {t === "summary" ? "Summary" : t === "cutlist" ? "Cut list" : t === "fasteners" ? "Fasteners" : "Steps"}
+            {t === "summary" ? "Overview" : t === "cutlist" ? "Pieces to cut" : t === "fasteners" ? "Screws" : "Build steps"}
           </button>
         ))}
       </nav>
@@ -35,11 +35,11 @@ export function Results({ design, recordId, problems = [], onReportProblem }: Re
       <div className="print-only print-package">
         <PrintHeader design={design} recordId={recordId} />
         <Summary design={design} recordId={recordId} problems={problems} />
-        <h2>Cut list</h2>
+        <h2>Pieces to cut</h2>
         <CutList design={design} />
-        <h2>Fasteners</h2>
+        <h2>Screws</h2>
         <Fasteners design={design} />
-        <h2>Cradle boards and pocket tables</h2>
+        <h2>Cradle boards and their pockets</h2>
         <Boards design={design} />
         <h2>Build steps</h2>
         <Steps design={design} />
@@ -62,7 +62,7 @@ export function Summary({ design, recordId, problems = [] }: { design: Design; r
   const orientation = design.frame.rules.map((r) => (r === "native" ? "as modelled" : r === "laid-down" ? "laid on its side" : "turned 90°")).join(", ");
   return (
     <section>
-      <h2>Summary</h2>
+      <h2>Overview</h2>
       <table className="kv">
         <tbody>
           <tr><th>Design ID</th><td>{recordId ?? "not saved"}</td></tr>
@@ -70,9 +70,9 @@ export function Summary({ design, recordId, problems = [] }: { design: Design; r
           <tr><th>Part orientation</th><td>{orientation}; long side along the crate length</td></tr>
           <tr><th>Outer size (L × W × H)</th><td>{u.size(crate.outer.L, crate.outer.W, crate.outer.H)}{crate.skids ? " including skids" : ""}</td></tr>
           <tr><th>Inside size (L × W × H)</th><td>{u.size(crate.inner.L, crate.inner.W, crate.inner.H)}</td></tr>
-          <tr><th>Structure tier</th><td>{tier.name}{design.promoted ? " (moved up one tier for the wide span)" : ""}: plywood {tier.plywoodLabel}, lumber {tier.stockLabel}{crate.skids ? `, ${crate.skids} skids ${tier.skid.label}` : ", no skids"}</td></tr>
+          <tr><th>Wood to use</th><td>plywood {tier.plywoodLabel}, lumber {tier.stockLabel}{crate.skids ? `, ${crate.skids} skids ${tier.skid.label}` : ", no skids"} (size class {tier.name}{design.promoted ? ", moved up one class for the wide span" : ""})</td></tr>
           <tr><th>Weights</th><td>parts {u.kg(design.netKg)} + wood {u.kg(design.woodKg)} = about {u.kg(design.grossKg)}</td></tr>
-          <tr><th>Cradle stations</th><td>{design.restraint.stations.length} per part, at {design.restraint.stations.map((s) => u.len(s.x)).join(", ")} from the part's end</td></tr>
+          <tr><th>Cradle boards</th><td>{design.restraint.stations.length} along each part, at {design.restraint.stations.map((s) => u.len(s.x)).join(", ")} from the part's end</td></tr>
         </tbody>
       </table>
       {design.warnings.map((w) => <p key={w} className="warning">{u.text(w)}</p>)}
@@ -89,6 +89,8 @@ export function Summary({ design, recordId, problems = [] }: { design: Design; r
 export function CutList({ design }: { design: Design }) {
   const u = useUnits();
   return (
+    <>
+    <p className="muted">Every wooden piece you need, with its size. Cut them first and write the ID on each one.</p>
     <table className="grid">
       <thead><tr><th>ID</th><th>Piece</th><th>Qty</th><th>Material</th><th>Length</th><th>Width</th><th>Thick</th><th>Notes</th></tr></thead>
       <tbody>
@@ -101,12 +103,15 @@ export function CutList({ design }: { design: Design }) {
         ))}
       </tbody>
     </table>
+    </>
   );
 }
 
 export function Fasteners({ design }: { design: Design }) {
   const u = useUnits();
   return (
+    <>
+    <p className="muted">Wood screws only. "About" is rounded up so you have spares.</p>
     <table className="grid">
       <thead><tr><th>Type</th><th>Size</th><th>About</th><th>Used for</th></tr></thead>
       <tbody>
@@ -115,6 +120,7 @@ export function Fasteners({ design }: { design: Design }) {
         ))}
       </tbody>
     </table>
+    </>
   );
 }
 

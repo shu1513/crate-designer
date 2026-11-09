@@ -1,5 +1,6 @@
 import { useRef, useState, type ChangeEvent, type DragEvent } from "react";
 import type { ModelUnits, UpAxis } from "../core/part.ts";
+import { matchPart, parsePartsList, type PartsListEntry } from "../core/partsList.ts";
 import type { PartSummary } from "../worker/protocol.ts";
 import { designWorker } from "../worker/client.ts";
 import { useUnits } from "./units.tsx";
@@ -10,6 +11,8 @@ export interface LoadedPart {
   summary: PartSummary;
   modelUnits: ModelUnits;
   upAxis: UpAxis;
+  /** Entry from a dropped parts list whose model file name matches this GLB, if any (R29). */
+  match: PartsListEntry | null;
 }
 
 interface Props {
@@ -28,6 +31,8 @@ export function PartInput({ onLoaded, onChanging }: Props) {
   const [summary, setSummary] = useState<PartSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [partsList, setPartsList] = useState<PartsListEntry[] | null>(null);
+  const [partsListError, setPartsListError] = useState<string | null>(null);
   const loadSeq = useRef(0);
 
   async function load(name: string, data: ArrayBuffer, units: ModelUnits, up: UpAxis) {
@@ -42,7 +47,7 @@ export function PartInput({ onLoaded, onChanging }: Props) {
       if (seq !== loadSeq.current) return; // a newer load superseded this one
       if (res.type === "partLoaded") {
         setSummary(res.summary);
-        onLoaded({ fileName: name, bytes: data, summary: res.summary, modelUnits: units, upAxis: up });
+        onLoaded({ fileName: name, bytes: data, summary: res.summary, modelUnits: units, upAxis: up, match: partsList ? matchPart(partsList, name) : null });
       } else {
         setSummary(null);
         setError(res.type === "error" ? res.message : "Unexpected reply from the measuring step.");
@@ -65,15 +70,30 @@ export function PartInput({ onLoaded, onChanging }: Props) {
     await load(file.name, data, modelUnits, upAxis);
   }
 
+  /** A drop may hold a parts list (.json), one or more models (.glb), or both; the list is read first. */
+  async function acceptFiles(files: FileList | File[]) {
+    const all = Array.from(files);
+    const json = all.find((f) => f.name.toLowerCase().endsWith(".json"));
+    if (json) {
+      try {
+        setPartsList(parsePartsList(await json.text()));
+        setPartsListError(null);
+      } catch (err) {
+        setPartsListError((err as Error).message);
+      }
+    }
+    const glb = all.find((f) => f.name.toLowerCase().endsWith(".glb"));
+    if (glb) await acceptFile(glb);
+  }
+
   function onDrop(e: DragEvent<HTMLDivElement>) {
     e.preventDefault();
-    const file = e.dataTransfer.files[0];
-    if (file) void acceptFile(file);
+    void acceptFiles(e.dataTransfer.files);
   }
 
   function onPick(e: ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (file) void acceptFile(file);
+    if (e.target.files) void acceptFiles(e.target.files);
+    e.target.value = "";
   }
 
   function onUnits(e: ChangeEvent<HTMLSelectElement>) {
@@ -91,26 +111,45 @@ export function PartInput({ onLoaded, onChanging }: Props) {
   return (
     <div className="part-input">
       <div className="dropzone" onDragOver={(e) => e.preventDefault()} onDrop={onDrop}>
-        <p>{fileName ? <strong>{fileName}</strong> : "Drop a .glb file here"}</p>
+        <p>{fileName ? <strong>{fileName}</strong> : "Drop a .glb file here (and parts.json if you have it)"}</p>
         <label className="button">
-          Choose file
-          <input type="file" accept=".glb,model/gltf-binary" onChange={onPick} hidden />
+          Choose files
+          <input type="file" accept=".glb,.json,model/gltf-binary,application/json" multiple onChange={onPick} hidden />
         </label>
       </div>
+      {partsListError && <p className="error">{partsListError}</p>}
+      {partsList && (
+        <details className="parts-list" open={!fileName}>
+          <summary>Parts list: {partsList.length} part{partsList.length === 1 ? "" : "s"}</summary>
+          <table className="grid">
+            <thead><tr><th>ID</th><th>Name</th><th>Weight</th><th>Qty</th></tr></thead>
+            <tbody>
+              {partsList.map((p) => (
+                <tr key={p.id} className={fileName && matchPart(partsList, fileName)?.id === p.id ? "matched" : ""}>
+                  <td>{p.id}</td><td>{p.name}</td><td>{u.kg(p.massKg)}</td><td>{p.suggestedQuantities.join(", ")}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p className="muted">Drop the matching .glb file to load it; its weight and quantities fill in.</p>
+        </details>
+      )}
       <label className="field">
-        Model units
+        File is measured in
         <select value={modelUnits} onChange={onUnits}>
-          <option value="m">meters</option>
+          <option value="m">meters (Hadrian sample files)</option>
           <option value="mm">millimeters</option>
           <option value="in">inches</option>
         </select>
+        <span className="hint">A .glb file does not say what unit it uses. If the size shown below looks wrong, change this.</span>
       </label>
       <label className="field">
-        Up axis
+        Which way is up in the file
         <select value={upAxis} onChange={onUp}>
-          <option value="Z">Z up (sample files)</option>
-          <option value="Y">Y up (glTF default)</option>
+          <option value="Z">Z is up (Hadrian sample files)</option>
+          <option value="Y">Y is up (most other CAD exports)</option>
         </select>
+        <span className="hint">If the part appears lying on its side in the 3D view, switch this.</span>
       </label>
       {busy && <p className="status">Measuring…</p>}
       {error && <p className="error">{error}</p>}

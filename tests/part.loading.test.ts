@@ -132,7 +132,7 @@ describe("Section 6: errors and warnings", () => {
 
   it("E7: suspicious sizes warn but still load", () => {
     const huge = loadPart(buildGlb([{ size: [30, 1, 1] }]), { modelUnits: "m", upAxis: "Z" });
-    expect(huge.warnings[0]).toMatch(/measures 30000 × 1000 × 1000 mm/);
+    expect(huge.warnings[0]).toMatch(/measures \{\{mm:30000\}\} × \{\{mm:1000\}\} × \{\{mm:1000\}\}/);
     const tiny = loadPart(buildGlb([{ size: [5, 5, 5] }]), { modelUnits: "mm", upAxis: "Z" });
     expect(tiny.warnings).toHaveLength(1);
     const normal = loadPart(buildGlb([{ size: [1.53, 0.172, 0.172] }]), { modelUnits: "m", upAxis: "Z" });

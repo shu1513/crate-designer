@@ -67,7 +67,7 @@ export function Summary({ design, recordId }: { design: Design; recordId: string
           <tr><th>Cradle stations</th><td>{design.restraint.stations.length} per part, at {design.restraint.stations.map((s) => u.len(s.x)).join(", ")} from the part's end</td></tr>
         </tbody>
       </table>
-      {design.warnings.map((w) => <p key={w} className="warning">{w}</p>)}
+      {design.warnings.map((w) => <p key={w} className="warning">{u.text(w)}</p>)}
     </section>
   );
 }
@@ -91,12 +91,13 @@ export function CutList({ design }: { design: Design }) {
 }
 
 export function Fasteners({ design }: { design: Design }) {
+  const u = useUnits();
   return (
     <table className="grid">
       <thead><tr><th>Type</th><th>Size</th><th>About</th><th>Used for</th></tr></thead>
       <tbody>
         {design.fasteners.map((f) => (
-          <tr key={f.size + f.usedIn.join()}><td>{f.type}</td><td>{f.size}</td><td>{f.countAbout}</td><td>{f.usedIn.join(", ")}</td></tr>
+          <tr key={f.role}><td>{f.type}</td><td>{f.gauge} × {u.len(f.lengthMm)}</td><td>{f.countAbout}</td><td>{f.usedIn.join(", ")}</td></tr>
         ))}
       </tbody>
     </table>
@@ -132,7 +133,7 @@ export function Steps({ design }: { design: Design }) {
                   <table className="positions"><tbody>{s.positions.map((p) => <tr key={p.label + p.mm}><td>{p.label}</td><td>{u.len(p.mm)}</td></tr>)}</tbody></table>
                 )}
                 {s.note && <div className="note">{u.text(s.note)}</div>}
-                {(s.screw || s.tool) && <div className="muted">{[s.screw && `Screws: ${s.screw}`, s.tool && `Tool: ${s.tool}`].filter(Boolean).join(" · ")}</div>}
+                {(s.screw || s.tool) && <div className="muted">{[s.screw && `Screws: ${u.text(s.screw)}`, s.tool && `Tool: ${s.tool}`].filter(Boolean).join(" · ")}</div>}
               </div>
               <div className="step-figure" dangerouslySetInnerHTML={{ __html: stepSvg(s, labelFor) }} />
             </div>

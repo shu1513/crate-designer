@@ -21,6 +21,8 @@ export const MESSAGES = {
   E8: "This model is too detailed for the app (over 500,000 triangles). Export a simplified version.",
 } as const;
 
-export function warningE7(sizeText: string): string {
-  return `This part measures ${sizeText}. If that is wrong, change the model units.`;
+/** E7 text with {{mm:N}} tokens so the screen can show it in the chosen unit (R20). */
+export function warningE7(L: number, W: number, H: number): string {
+  const t = (v: number) => `{{mm:${Math.round(v)}}}`;
+  return `This part measures ${t(L)} × ${t(W)} × ${t(H)}. If that is wrong, change the model units.`;
 }

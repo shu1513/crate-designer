@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Design } from "../core/design.ts";
 import type { DisplayUnit } from "../core/format.ts";
 import { loadPart } from "../core/part.ts";
@@ -22,6 +22,9 @@ export function App() {
   const [unit, setUnit] = useState<DisplayUnit>("mm");
   const [hideLid, setHideLid] = useState(false);
   const [hideWalls, setHideWalls] = useState(false);
+  // Bumped on every input change; worker replies from an older revision are ignored (R23).
+  const revision = useRef(0);
+  const invalidate = () => { revision.current++; setDesign(null); setDesignError(null); };
 
   useEffect(() => {
     fetch("/api/health")
@@ -33,8 +36,7 @@ export function App() {
   // Any change to the part or its settings clears the design (SPEC R23); the unit toggle does not.
   function onPartLoaded(p: LoadedPart | null) {
     setPart(p);
-    setDesign(null);
-    setDesignError(null);
+    invalidate();
     if (p) {
       try {
         setPartPositions(loadPart(p.bytes.slice(0), { modelUnits: p.modelUnits, upAxis: p.upAxis }).positions);
@@ -47,17 +49,20 @@ export function App() {
   }
 
   async function runDesign(quantity: number, weightKg: number) {
+    const rev = revision.current;
     setBusy(true);
     setDesignError(null);
     try {
       const res = await designWorker.send({ type: "design", quantity, weightKg });
+      if (rev !== revision.current) return; // inputs changed meanwhile: stale result
       if (res.type === "designed") setDesign(res.design);
       else if (res.type === "error") { setDesign(null); setDesignError(res.message); }
     } catch (err) {
+      if (rev !== revision.current) return;
       setDesign(null);
       setDesignError(`The design step failed: ${(err as Error).message}`);
     } finally {
-      setBusy(false);
+      if (rev === revision.current) setBusy(false);
     }
   }
 
@@ -70,8 +75,8 @@ export function App() {
             <button className={unit === "mm" ? "active" : ""} onClick={() => setUnit("mm")}>mm</button>
             <button className={unit === "in" ? "active" : ""} onClick={() => setUnit("in")}>in</button>
           </div>
-          <PartInput onLoaded={onPartLoaded} />
-          <DesignInputs disabled={!part} busy={busy} unit={unit} onDesign={runDesign} onChange={() => { setDesign(null); setDesignError(null); }} />
+          <PartInput onLoaded={onPartLoaded} onChanging={invalidate} />
+          <DesignInputs disabled={!part} busy={busy} unit={unit} onDesign={runDesign} onChange={invalidate} />
           <button className="secondary" disabled={!design} onClick={() => window.print()}>Print</button>
           <p className="status muted">
             Service: {health ? `ok (v${health.version})` : healthError ? `unreachable (${healthError})` : "checking…"}

@@ -34,13 +34,13 @@ export function Preview3D({ design, partPositions, hideLid, hideWalls }: Props) 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0xf8fafc);
     const camera = new THREE.PerspectiveCamera(40, 1, 1, 100000);
+    // Our frame is Z up; Three.js defaults to Y up. Set before OrbitControls reads it.
+    camera.up.set(0, 0, 1);
     const controls = new OrbitControls(camera, renderer.domElement);
     scene.add(new THREE.AmbientLight(0xffffff, 0.8));
     const sun = new THREE.DirectionalLight(0xffffff, 0.9);
     sun.position.set(1, -2, 3);
     scene.add(sun);
-    // Our frame is Z up; Three.js defaults to Y up.
-    camera.up.set(0, 0, 1);
 
     const wood = new THREE.MeshLambertMaterial({ color: 0xdeb887 });
     const woodDark = new THREE.MeshLambertMaterial({ color: 0xc69c6d });
@@ -76,19 +76,26 @@ export function Preview3D({ design, partPositions, hideLid, hideWalls }: Props) 
     const size = box.getSize(new THREE.Vector3());
     const center = box.getCenter(new THREE.Vector3());
     const radius = Math.max(size.length() / 2, 100);
-    camera.position.set(center.x - radius * 1.2, center.y - radius * 1.6, center.z + radius * 1.0);
-    camera.near = radius / 100;
-    camera.far = radius * 20;
-    camera.updateProjectionMatrix();
-    controls.target.copy(center);
-    controls.update();
+    const dir = new THREE.Vector3(-1.2, -1.6, 1.0).normalize();
+    // Fit the bounding sphere using the smaller of the vertical and horizontal half-angles.
+    const frameCamera = () => {
+      const vFov = (camera.fov * Math.PI) / 360;
+      const hFov = Math.atan(Math.tan(vFov) * camera.aspect);
+      const dist = (radius / Math.sin(Math.min(vFov, hFov))) * 1.05;
+      camera.position.copy(center).addScaledVector(dir, dist);
+      camera.near = dist / 100;
+      camera.far = dist * 20;
+      camera.updateProjectionMatrix();
+      controls.target.copy(center);
+      controls.update();
+    };
 
     const resize = () => {
       const w = el.clientWidth || 600;
       const h = el.clientHeight || 400;
       renderer.setSize(w, h, false);
       camera.aspect = w / h;
-      camera.updateProjectionMatrix();
+      frameCamera();
     };
     resize();
     el.appendChild(renderer.domElement);
@@ -107,10 +114,13 @@ export function Preview3D({ design, partPositions, hideLid, hideWalls }: Props) 
       cancelAnimationFrame(frame);
       observer.disconnect();
       controls.dispose();
-      renderer.dispose();
       group.traverse((o) => {
         if (o instanceof THREE.Mesh) o.geometry.dispose();
       });
+      wood.dispose();
+      woodDark.dispose();
+      partMat.dispose();
+      renderer.dispose();
       if (renderer.domElement.parentNode === el) el.removeChild(renderer.domElement);
     };
   }, [design, partPositions, hideLid, hideWalls]);

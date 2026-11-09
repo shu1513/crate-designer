@@ -40,7 +40,7 @@ describe("R18: build steps", () => {
       // Every screw is driven through the face that is up: panels are built cleats-down, lids and floors are flipped first.
       const flips = d.steps.filter((s) => s.flip).map((s) => s.id);
       expect(flips.length).toBeGreaterThanOrEqual(3);
-      const shim = d.steps.find((s) => s.text.startsWith("Screw each strip"))!;
+      const shim = d.steps.find((s) => s.text.startsWith("If you cut a strip"))!;
       expect(shim.screw).toBeDefined();
     }
   });
@@ -54,7 +54,7 @@ describe("R18: build steps", () => {
     const withSkids = designFromPart(shaftLike(), inputs(1, 27));
     expect(withSkids.steps.some((s) => s.pieceIds.includes("SK") && s.screw)).toBe(true);
     expect(withSkids.steps.filter((s) => s.flip).length).toBeGreaterThanOrEqual(3);
-    expect(d.steps.map((s) => s.id).slice(0, 4)).toEqual(["1a", "1b", "1c", "2a"]);
+    expect(d.steps.map((s) => s.id).slice(0, 4)).toEqual(["1a", "1b", "2a", "2b"]);
   });
 
   it("T-R15: every piece ID appears in at least one step", () => {
@@ -71,7 +71,7 @@ describe("R18: build steps", () => {
     expect(shim).toBeDefined();
     expect(shim.text).toMatch(/^If a gap is over \{\{mm:6\}\}/);
     expect(renderText(shim.text, "in")).toContain("1/4 in");
-    expect(loading[0]!.text).toMatch(/^If the part has finished surfaces, line each pocket with felt no thicker than \{\{mm:2\}\}/);
+    expect(loading[0]!.text).toMatch(/^If the part has finished surfaces, line each pocket with felt no thicker than \{\{mm:1\}\}/);
   });
 
   it("marks and station lines are measured from the left end and match the board positions", () => {
@@ -139,12 +139,21 @@ describe("R18, R11: drawings", () => {
   it("the L-mark convention, screw spacing, and one-way loading are stated", () => {
     const d = designFromPart(shaftLike(), inputs(1, 27));
     expect(d.steps.find((s) => s.group === 1 && s.text.includes("letter L") && s.pieceIds.includes("FP"))).toBeDefined();
-    expect(d.steps.find((s) => s.group === 1 && s.text.includes("letter L") && s.pieceIds.includes("BC-1"))).toBeDefined();
-    expect(d.steps.filter((s) => s.text.includes("spaced evenly")).length).toBeGreaterThanOrEqual(2);
-    expect(d.steps.find((s) => s.text.startsWith("Lower each part"))!.note).toMatch(/one way round/);
-    expect(d.steps.find((s) => s.group === 11)!.text).toContain("L mark over the floor's L mark");
+    // Board screws go into the solid webs, a stated distance past the face line; corner and lid screws get their line.
+    expect(d.steps.filter((s) => s.text.includes("one in each solid web")).length).toBe(2);
+    expect(d.steps.find((s) => s.group === 8 && s.screw && s.text.includes("end edge"))).toBeDefined();
+    expect(d.steps.find((s) => s.group === 11 && s.screw)!.text).toContain("from LP's edges");
+    // The stepped shaft is wider at the collar end: a loading cue is given; a plain box gets "either way round".
+    expect(d.steps.find((s) => s.text.startsWith("Lower each part"))!.text).toMatch(/wide end toward the (L|far) end/);
+    expect(d.steps.find((s) => s.group === 11 && !s.screw)!.text).toContain("L mark over the floor's L mark");
     const uniform = designFromPart(bracketLike(), inputs(1, 21.5));
     expect(uniform.steps.find((s) => s.text.startsWith("Lower each part"))!.note).toMatch(/either way round/);
+    // Pockets are cut in three actions: mark, saw the sides, chisel the waste.
+    expect(d.steps.filter((s) => s.group === 2).length).toBe(3 * 6);
+    // Shimming lifts the part out first and every conditional stays one action.
+    const lift = d.steps.find((s) => s.text.startsWith("If a gap is over"))!;
+    expect(lift.text).toMatch(/lift that part out/);
+    expect(d.steps.find((s) => s.text.startsWith("If you cut a strip"))!.screw).toBeDefined();
   });
 
   it("T-R11: each cradle board drawing has a pocket table with one row per pocket and positive numbers", () => {

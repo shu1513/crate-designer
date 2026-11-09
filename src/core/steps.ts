@@ -44,7 +44,7 @@ const GROUPS: Record<number, string> = {
   9: "Build the lid", 10: "Load the parts", 11: "Close the crate",
 };
 
-export const STEP_VERBS = ["Lay", "Mark", "Cut", "Place", "Clamp", "Turn", "Drive", "Stand", "Screw", "Set", "Lower", "Measure", "If", "Repeat", "Line", "Fit", "Check", "Put"];
+export const STEP_VERBS = ["Lay", "Mark", "Cut", "Saw", "Chisel", "Place", "Clamp", "Turn", "Drive", "Stand", "Screw", "Set", "Lower", "Measure", "If", "Repeat", "Line", "Fit", "Check", "Put"];
 
 interface Ctx {
   crate: Crate;
@@ -66,6 +66,11 @@ function bottomCleatOffset(crate: Crate, skinId: string, cleatId: string): numbe
   return cleat - skin.z;
 }
 
+/** Lumber thickness c for this design (every cradle board and cleat is this thick). */
+function restraintThickness(ctx: Ctx): number {
+  return ctx.restraint.bottomBoards[0]?.thickness ?? ctx.crate.pieces.find((p) => p.id === "SC-V")!.thickness;
+}
+
 export function buildSteps(ctx: Ctx): Step[] {
   const { crate, layout, frame, fasteners } = ctx;
   const P = crate.pieces;
@@ -82,6 +87,8 @@ export function buildSteps(ctx: Ctx): Step[] {
   };
   const place = (pieces: Piece[]) => placed.push(...boxesOf(pieces));
   const w = crate.w;
+  const c = restraintThickness(ctx);
+  const rowsText = ctx.crate.pieces.find((p) => p.id === "SC-V")!.width >= 82 ? "in two staggered rows" : "in one centred row";
 
   const bottom = byId(P, /^BC-/), top = byId(P, /^TC-/), stops = byId(P, /^EB-/);
   const bf = byId(P, /^BF-/), rails = byId(P, /^BF-(L|S)$/), joists = byId(P, /^BF-J$/), skids = byId(P, /^SK$/);
@@ -94,22 +101,23 @@ export function buildSteps(ctx: Ctx): Step[] {
 
   begin(1);
   add({ text: "Lay out all pieces by ID using the cut list.", pieceIds: ids(P), highlight: boxesOf(P), inPlace: [], note: "Note: every piece carries its ID in the drawings." });
-  add({ text: "Mark one end of FP and one end of LP with the letter L.", pieceIds: ["FP", "LP"], tool: "pencil", highlight: [...boxesOf(fp), ...boxesOf(lp)], inPlace: [], note: "Note: every \"from the left end\" in these steps is measured from an L mark, and the lid goes on with its L over the floor's L." });
-  add({ text: "Mark the left end of every cradle board and end stop with the letter L.", pieceIds: [...ids(bottom), ...ids(top), ...ids(stops)], tool: "pencil", highlight: [...boxesOf(bottom), ...boxesOf(top), ...boxesOf(stops)], inPlace: [], note: "Note: the pocket tables measure from this end." });
+  add({ text: "Mark one end of FP and one end of LP with the letter L.", pieceIds: ["FP", "LP"], tool: "pencil", highlight: [...boxesOf(fp), ...boxesOf(lp)], inPlace: [], note: `Note: every "from the L end" below is measured from that mark. The other two edges of a panel are its side edges. The lid goes on with its L over the floor's L.${layout.rows > 1 ? " Board IDs read row.board: BC-2.1 is the first bottom board of the second row from the L end." : ""}` });
 
   begin(2);
   for (const b of [...bottom, ...top]) {
-    add({ text: `Cut the pockets in ${b.id} as listed in its pocket table with a handsaw.`, pieceIds: [b.id], tool: "handsaw", highlight: b.placements, inPlace: [], note: "Note: two vertical cuts and one horizontal cut per pocket, measured from the L end." });
+    add({ text: `Mark each pocket on ${b.id} from either end: its start, its width, and its depth from the open edge.`, pieceIds: [b.id], tool: "tape and pencil", highlight: b.placements, inPlace: [], note: "Note: the pockets are placed symmetrically, so either end of the board can be the table's left end." });
+    add({ text: `Saw the two sides of each pocket in ${b.id} down to the marked depth.`, pieceIds: [b.id], tool: "handsaw", highlight: b.placements, inPlace: [] });
+    add({ text: `Chisel out the waste between the cuts in ${b.id}, flat to the depth line.`, pieceIds: [b.id], tool: "chisel and mallet", highlight: b.placements, inPlace: [], note: "Note: a jigsaw also works; the pocket floor must be flat because the part sits on it." });
   }
 
   begin(3);
   const floorBoards = [...bottom, ...stops];
   const floorLines = floorBoards.map((b) => ({ label: b.id, mm: b.placements[0]!.x })).sort((a, b) => a.mm - b.mm);
-  add({ text: "Mark lines across both faces of FP at the positions listed below, from its left end.", pieceIds: ["FP"], tool: "tape and pencil", highlight: boxesOf(fp), inPlace: [], labels: ["top face"], positions: floorLines, note: "Note: each line marks the board's left face; the lines on the underside guide the screws after turning over." });
+  add({ text: "Mark lines across both faces of FP at the positions listed below, from its L end.", pieceIds: ["FP"], tool: "tape and pencil", highlight: boxesOf(fp), inPlace: [], labels: ["top face"], positions: floorLines, note: `Note: each line marks the face of the board nearest the L end; the board's wood lies on the far side of its line, ${mm(c)} thick. The lines on the underside guide the screws after turning over.` });
   add({ text: "Place each bottom cradle board and end stop with its left face on its line, pockets up.", pieceIds: ["FP", ...ids(floorBoards)], highlight: boxesOf(floorBoards), inPlace: boxesOf(fp) });
   add({ text: "Clamp each board to FP.", pieceIds: ["FP", ...ids(floorBoards)], tool: "clamps", highlight: boxesOf(floorBoards), inPlace: boxesOf(fp) });
   add({ text: "Turn FP over with the boards clamped to it.", pieceIds: ["FP"], flip: true, highlight: boxesOf(fp), inPlace: boxesOf(floorBoards) });
-  add({ text: `Drive three ${boardScrew} screws through FP into each board, spaced evenly along its line.`, pieceIds: ["FP", ...ids(floorBoards)], screw: boardScrew, tool: "drill driver", highlight: boxesOf(floorBoards), inPlace: boxesOf(fp), note: "Note: aim for the middle of the board's thickness." });
+  add({ text: `Drive ${boardScrew} screws through FP into each board, ${mm(c / 2)} past its line, one in each solid web.`, pieceIds: ["FP", ...ids(floorBoards)], screw: boardScrew, tool: "drill driver", highlight: boxesOf(floorBoards), inPlace: boxesOf(fp), note: "Note: a web is the full-height wood beside or between the pockets; never screw under a pocket. End stops get three screws spaced evenly." });
 
   begin(4);
   add({ text: "Stand BF-L and BF-S on edge in a rectangle, long rails outside.", pieceIds: ids(rails), highlight: boxesOf(rails), inPlace: [] });
@@ -121,7 +129,7 @@ export function buildSteps(ctx: Ctx): Step[] {
   }
   if (skids.length) {
     const skidScrew = screw("skid");
-    add({ text: "Set the base frame on the skids, outer skids flush with the long rails.", pieceIds: ["SK", ...ids(bf)], highlight: boxesOf(skids), inPlace: boxesOf(bf) });
+    add({ text: `Set the base frame on the skids, outer skids flush with the long rails, overhanging each end by ${mm(w)}.`, pieceIds: ["SK", ...ids(bf)], highlight: boxesOf(skids), inPlace: boxesOf(bf), note: skids.length && (skids[0]!.count === 3) ? "Note: skids stand on their narrow face; the third skid runs under the middle of the base." : "Note: skids stand on their narrow face." });
     add({ text: `Drive ${skidScrew} screws down through the rails into the skids every ${mm(300)}.`, pieceIds: ["SK", ...ids(bf)], screw: skidScrew, tool: "drill driver", highlight: boxesOf(skids), inPlace: boxesOf(bf), note: "Note: two screws where a short rail or joist crosses the middle skid." });
   }
   place(skids); place(bf);
@@ -129,7 +137,7 @@ export function buildSteps(ctx: Ctx): Step[] {
   begin(5);
   add({ text: "Turn FP back over so the cradles point up.", pieceIds: ["FP"], flip: true, highlight: [...boxesOf(fp), ...boxesOf(floorBoards)], inPlace: [] });
   add({ text: "Set FP on the base frame, cradles up, flush with its edges.", pieceIds: ["FP", ...ids(bf)], highlight: [...boxesOf(fp), ...boxesOf(floorBoards)], inPlace: [...placed] });
-  add({ text: `Screw FP down into the rails every ${mm(300)} with ${wall} screws.`, pieceIds: ["FP", ...ids(rails)], screw: wall, tool: "drill driver", highlight: boxesOf(fp), inPlace: [...placed, ...boxesOf(floorBoards)] });
+  add({ text: `Screw FP down into the two long rails every ${mm(300)} with ${wall} screws.`, pieceIds: ["FP", "BF-L"], screw: wall, tool: "drill driver", highlight: boxesOf(fp), inPlace: [...placed, ...boxesOf(floorBoards)], note: "Note: the end rails sit under the end stops and are held by the end walls later." });
   place(fp); place(floorBoards);
 
   begin(6);
@@ -146,7 +154,8 @@ export function buildSteps(ctx: Ctx): Step[] {
     add({ text: "Lay EC-M between them at the positions listed below, from the panel's left end.", pieceIds: ["EC-M"], highlight: ecm.flatMap(leftEndPanel), inPlace: ecPerimeter.flatMap(leftEndPanel), positions: pos, panel: endPanel });
   }
   add({ text: "Set ES on the cleats, inside face up, flush with the outer cleat edges.", pieceIds: ["ES", ...ids(ec)], highlight: es.flatMap(leftEndPanel), inPlace: ec.flatMap(leftEndPanel), labels: ["inside face up"] });
-  add({ text: `Screw through ES into each cleat every ${mm(100)} with ${wall} screws.`, pieceIds: ["ES", ...ids(ec)], screw: wall, tool: "drill driver", highlight: ec.flatMap(leftEndPanel), inPlace: es.flatMap(leftEndPanel) });
+  add({ text: "Mark the cleat centre lines on the face of ES, using the panel drawing.", pieceIds: ["ES", ...ids(ec)], tool: "tape and pencil", highlight: es.flatMap(leftEndPanel), inPlace: ec.flatMap(leftEndPanel), panel: endPanel });
+  add({ text: `Screw through ES into each cleat every ${mm(100)} with ${wall} screws, ${rowsText}.`, pieceIds: ["ES", ...ids(ec)], screw: wall, tool: "drill driver", highlight: ec.flatMap(leftEndPanel), inPlace: es.flatMap(leftEndPanel) });
   add({ text: "Repeat for the second end panel.", pieceIds: ["ES", ...ids(ec)], highlight: [...es.flatMap(rightEndPanel), ...ec.flatMap(rightEndPanel)], inPlace: [] });
 
   begin(7);
@@ -163,7 +172,8 @@ export function buildSteps(ctx: Ctx): Step[] {
     add({ text: "Lay SC-M between them at the positions listed below, from the panel's left end.", pieceIds: ["SC-M"], highlight: scm.flatMap(nearSidePanel), inPlace: scPerimeter.flatMap(nearSidePanel), positions: pos, panel: sidePanel });
   }
   add({ text: "Set SS on the cleats, inside face up, flush with the outer cleat edges.", pieceIds: ["SS", ...ids(sc)], highlight: ss.flatMap(nearSidePanel), inPlace: sc.flatMap(nearSidePanel), labels: ["inside face up"] });
-  add({ text: `Screw through SS into each cleat every ${mm(100)} with ${wall} screws.`, pieceIds: ["SS", ...ids(sc)], screw: wall, tool: "drill driver", highlight: sc.flatMap(nearSidePanel), inPlace: ss.flatMap(nearSidePanel) });
+  add({ text: "Mark the cleat centre lines on the face of SS, using the panel drawing.", pieceIds: ["SS", ...ids(sc)], tool: "tape and pencil", highlight: ss.flatMap(nearSidePanel), inPlace: sc.flatMap(nearSidePanel), panel: sidePanel });
+  add({ text: `Screw through SS into each cleat every ${mm(100)} with ${wall} screws, ${rowsText}.`, pieceIds: ["SS", ...ids(sc)], screw: wall, tool: "drill driver", highlight: sc.flatMap(nearSidePanel), inPlace: ss.flatMap(nearSidePanel) });
   add({ text: "Repeat for the second side panel.", pieceIds: ["SS", ...ids(sc)], highlight: [...ss.flatMap(farSidePanel), ...sc.flatMap(farSidePanel)], inPlace: [] });
 
   begin(8);
@@ -171,12 +181,12 @@ export function buildSteps(ctx: Ctx): Step[] {
   place(es); place(ec);
   add({ text: "Stand both side panels so their skins cover the end panel edges and the base sides.", pieceIds: ["SS", ...ids(sc)], highlight: [...boxesOf(ss), ...boxesOf(sc)], inPlace: [...placed] });
   place(ss); place(sc);
-  add({ text: `Screw each corner every ${mm(100)} with ${cornerScrew} screws, through the side cleat into the end cleat.`, pieceIds: ["SC-V", "EC-V"], screw: cornerScrew, tool: "drill driver", highlight: [...boxesOf(byId(P, /^SC-V$/)), ...boxesOf(byId(P, /^EC-V$/))], inPlace: [...placed] });
+  add({ text: `Screw each corner every ${mm(100)} with ${cornerScrew} screws, ${mm(c / 2)} in from the side panel's end edge.`, pieceIds: ["SC-V", "EC-V"], screw: cornerScrew, tool: "drill driver", note: "Note: the screw passes through the side cleat and skin into the end cleat, which is only one cleat thickness wide, so keep to that line.", highlight: [...boxesOf(byId(P, /^SC-V$/)), ...boxesOf(byId(P, /^EC-V$/))], inPlace: [...placed] });
   add({ text: `Screw each skin into the base rail behind it every ${mm(100)} along the bottom with ${wall} screws.`, pieceIds: ["SS", "ES", "BF-L", "BF-S"], screw: wall, tool: "drill driver", highlight: [...boxesOf(ss), ...boxesOf(es)], inPlace: [...placed], note: "Note: the bare band of skin below the bottom cleat sits over the rail." });
 
   begin(9);
   const lcPositions = [
-    { label: "LC-L, from each long edge of LP", mm: w },
+    { label: "LC-L, from each side edge of LP", mm: w },
     { label: "LC-S, from each end of LP", mm: w },
     ...byId(P, /^LC-M$/).flatMap((p) => p.placements.map((b, i) => ({ label: `LC-M ${i + 1}, from the left end`, mm: b.x + w }))),
   ];
@@ -185,27 +195,37 @@ export function buildSteps(ctx: Ctx): Step[] {
   add({ text: `Place ${list(ids(lc))} on LP at the positions listed below.`, pieceIds: ["LP", ...ids(lc)], highlight: boxesOf(lc), inPlace: boxesOf(lp), positions: lcPositions, panel: lidPanel });
   add({ text: "Clamp the cleats to LP.", pieceIds: ["LP", ...ids(lc)], tool: "clamps", highlight: boxesOf(lc), inPlace: boxesOf(lp) });
   add({ text: "Turn LP over so it rests on the cleats.", pieceIds: ["LP"], flip: true, highlight: boxesOf(lp), inPlace: boxesOf(lc) });
-  add({ text: `Screw through LP into each cleat every ${mm(100)} with ${wall} screws.`, pieceIds: ["LP", ...ids(lc)], screw: wall, tool: "drill driver", highlight: boxesOf(lc), inPlace: boxesOf(lp) });
+  add({ text: "Mark the cleat centre lines on the inside face of LP, using the lid drawing.", pieceIds: ["LP", ...ids(lc)], tool: "tape and pencil", highlight: boxesOf(lp), inPlace: boxesOf(lc), panel: lidPanel });
+  add({ text: `Screw through LP into each cleat every ${mm(100)} with ${wall} screws, ${rowsText}.`, pieceIds: ["LP", ...ids(lc)], screw: wall, tool: "drill driver", highlight: boxesOf(lc), inPlace: boxesOf(lp) });
   const topLines = top.map((b) => ({ label: b.id, mm: b.placements[0]!.x + w })).sort((a, b) => a.mm - b.mm);
-  add({ text: "Mark lines across both faces of LP at the positions listed below, from its left end.", pieceIds: ["LP"], tool: "tape and pencil", highlight: boxesOf(lp), inPlace: boxesOf(lc), labels: ["inside face up"], positions: topLines, note: "Note: each line marks the board's left face; the lines on the outside guide the screws after turning over." });
-  add({ text: `Place each top cradle board with its left face on its line, pockets up, ${mm(w)} in from each long edge.`, pieceIds: ["LP", ...ids(top)], highlight: boxesOf(top), inPlace: [...boxesOf(lp), ...boxesOf(lc)] });
+  add({ text: "Mark lines across both faces of LP at the positions listed below, from its L end.", pieceIds: ["LP"], tool: "tape and pencil", highlight: boxesOf(lp), inPlace: boxesOf(lc), labels: ["inside face up"], positions: topLines, note: `Note: each line marks the face of the board nearest the L end; the board lies on the far side, ${mm(c)} thick. The lines on the outside guide the screws after turning over.` });
+  add({ text: `Place each top cradle board with its L-side face on its line, pockets up, ${mm(w)} in from each side edge.`, pieceIds: ["LP", ...ids(top)], highlight: boxesOf(top), inPlace: [...boxesOf(lp), ...boxesOf(lc)] });
   add({ text: "Clamp each board to LP.", pieceIds: ["LP", ...ids(top)], tool: "clamps", highlight: boxesOf(top), inPlace: [...boxesOf(lp), ...boxesOf(lc)] });
   add({ text: "Turn LP over so it rests on the boards.", pieceIds: ["LP", ...ids(top)], flip: true, highlight: boxesOf(lp), inPlace: [...boxesOf(top), ...boxesOf(lc)], note: "Note: put blocks under the lid cleats if the boards differ in height." });
-  add({ text: `Drive three ${boardScrew} screws through LP into each board, spaced evenly, clear of the lid cleats.`, pieceIds: ["LP", ...ids(top)], screw: boardScrew, tool: "drill driver", highlight: boxesOf(top), inPlace: [...boxesOf(lp), ...boxesOf(lc)], note: "Note: aim for the middle of the board's thickness." });
+  add({ text: `Drive ${boardScrew} screws through LP into each board, ${mm(c / 2)} past its line, one in each solid web.`, pieceIds: ["LP", ...ids(top)], screw: boardScrew, tool: "drill driver", highlight: boxesOf(top), inPlace: [...boxesOf(lp), ...boxesOf(lc)], note: "Note: a web is the full-height wood beside or between the pockets; never screw into a pocket. Keep clear of the lid cleats." });
 
   begin(10);
   const partBoxes = layout.partOrigins.map((o) => ({ x: o.x, y: o.y, z: o.z, dx: frame.L, dy: frame.W, dz: frame.H }));
-  add({ text: `If the part has finished surfaces, line each pocket with felt no thicker than ${mm(2)}.`, pieceIds: ids(bottom), highlight: boxesOf(bottom), inPlace: [...placed] });
-  const pocketWidths = bottom.map((b) => b.cutouts[0]?.dy ?? 0);
-  const oneWay = Math.max(...pocketWidths) - Math.min(...pocketWidths) > 1;
-  add({ text: "Lower each part into its pockets.", pieceIds: ids(bottom), highlight: [], parts: partBoxes, inPlace: [...placed], note: oneWay ? "Note: the part fits one way round only; its widest section goes in the widest pocket." : "Note: all pockets are the same width, so either way round is fine." });
+  // Does the part fit one way round only? Compare the first and last station: width and height.
+  const st = ctx.restraint.stations;
+  const first = st[0]!.extents, last = st[st.length - 1]!.extents;
+  const widthDiff = (last.maxY - last.minY) - (first.maxY - first.minY);
+  const heightDiff = last.maxZ - first.maxZ;
+  const oneWay = Math.abs(widthDiff) > 1 || Math.abs(heightDiff) > 1;
+  const cue = Math.abs(heightDiff) > Math.abs(widthDiff)
+    ? (heightDiff > 0 ? "its tall end toward the far end" : "its tall end toward the L end")
+    : (widthDiff > 0 ? "its wide end toward the far end" : "its wide end toward the L end");
+  add({ text: `If the part has finished surfaces, line each pocket with felt no thicker than ${mm(1)}.`, pieceIds: ids(bottom), highlight: boxesOf(bottom), inPlace: [...placed], note: "Note: bottom and top linings together must stay under the 3 mm clearance above the part." });
+  add({ text: oneWay ? `Lower each part into its pockets with ${cue} of the crate.` : "Lower each part into its pockets.", pieceIds: ids(bottom), highlight: [], parts: partBoxes, inPlace: [...placed], note: oneWay ? "Note: the part fits one way round only; the other way the lid will not close." : "Note: the part is the same at both ends, so either way round is fine." });
   add({ text: "Measure the gap on both sides of each bottom pocket.", pieceIds: ids(bottom), tool: "tape", highlight: boxesOf(bottom), parts: partBoxes, inPlace: [...placed] });
-  add({ text: `If a gap is over ${mm(CLEARANCE.shimThreshold)}, cut a wood strip to fill it.`, pieceIds: ids(bottom), tool: "handsaw", highlight: boxesOf(bottom), parts: partBoxes, inPlace: [...placed] });
-  add({ text: `Screw each strip to the pocket wall with two ${wall} screws.`, pieceIds: ids(bottom), screw: wall, tool: "drill driver", highlight: boxesOf(bottom), parts: partBoxes, inPlace: [...placed], note: "Note: top pockets cannot be checked after closing; the pocket table is their check." });
+  add({ text: `If a gap is over ${mm(CLEARANCE.shimThreshold)}, lift that part out again.`, pieceIds: ids(bottom), highlight: boxesOf(bottom), parts: partBoxes, inPlace: [...placed] });
+  add({ text: "If you lifted a part out, cut a wood strip to fill the gap.", pieceIds: ids(bottom), tool: "handsaw", highlight: boxesOf(bottom), inPlace: [...placed] });
+  add({ text: `If you cut a strip, screw it to the pocket wall with two ${wall} screws.`, pieceIds: ids(bottom), screw: wall, tool: "drill driver", highlight: boxesOf(bottom), inPlace: [...placed] });
+  add({ text: "If you lifted a part out, lower it back in the same way round.", pieceIds: ids(bottom), highlight: [], parts: partBoxes, inPlace: [...placed], note: "Note: top pockets cannot be checked after closing; the pocket table is their check." });
 
   begin(11);
   add({ text: "Lower the lid, L mark over the floor's L mark, so the top cradles sit over the parts.", pieceIds: ["LP", ...ids(top), ...ids(lc)], highlight: [...boxesOf(lp), ...boxesOf(top), ...boxesOf(lc)], parts: partBoxes, inPlace: [...placed] });
-  add({ text: `Screw the lid down into the top wall cleats every ${mm(100)} with ${frameScrew} screws.`, pieceIds: ["LP", "SC-H", "EC-H"], screw: frameScrew, tool: "drill driver", highlight: boxesOf(lp), inPlace: [...placed, ...boxesOf(top), ...boxesOf(lc)], note: "Note: drive them in the bare band of LP outside the lid cleats." });
+  add({ text: `Screw the lid into the top wall cleats every ${mm(100)} with ${frameScrew} screws, ${mm(c / 2)} from LP's edges.`, pieceIds: ["LP", "SC-H", "EC-H"], screw: frameScrew, tool: "drill driver", highlight: boxesOf(lp), inPlace: [...placed, ...boxesOf(top), ...boxesOf(lc)], note: "Note: the top wall cleat is one cleat thickness wide, just inside the lid's edge; keep to that line." });
   return steps;
 }
 

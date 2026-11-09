@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { matchPart, parsePartsList } from "../src/core/partsList.ts";
+import { matchPart, parsePartsList, parsePartsListSettings } from "../src/core/partsList.ts";
 import { samplesPresent } from "./helpers/samples.ts";
 
 describe("R29: parts list intake", () => {
@@ -24,8 +24,17 @@ describe("R29: parts list intake", () => {
     expect(() => parsePartsList(JSON.stringify({ parts: [{ id: "X", model: "x.glb" }] }))).toThrowError(/Part X needs/);
   });
 
-  it.skipIf(!samplesPresent)("T-R29 sample: Hadrian's parts.json parses and matches all three sample files", () => {
-    const list = parsePartsList(readFileSync("samples/parts.json", "utf8"));
+  it("T-R29: reads model units and up axis from the list when present", () => {
+    expect(parsePartsListSettings(JSON.stringify({ model_units: "meters", coordinate_system: "right-handed; Z up", parts: [] }))).toEqual({ modelUnits: "m", upAxis: "Z" });
+    expect(parsePartsListSettings(JSON.stringify({ model_units: "mm", coordinate_system: "Y-up", parts: [] }))).toEqual({ modelUnits: "mm", upAxis: "Y" });
+    expect(parsePartsListSettings("{}")).toEqual({});
+    expect(parsePartsListSettings("nope")).toEqual({});
+  });
+
+  it.skipIf(!samplesPresent)("T-R29 sample: Hadrian's parts.json parses, matches all three sample files, and sets meters / Z up", () => {
+    const text = readFileSync("samples/parts.json", "utf8");
+    expect(parsePartsListSettings(text)).toEqual({ modelUnits: "m", upAxis: "Z" });
+    const list = parsePartsList(text);
     expect(list.map((p) => p.id)).toEqual(["PART-001", "PART-002", "PART-003"]);
     expect(matchPart(list, "PART-003-irregular-aluminum-housing.glb")?.massKg).toBe(11.8);
   });

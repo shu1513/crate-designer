@@ -15,7 +15,7 @@ const MODE_TRIANGLES = 4;
 type Mat4 = Float64Array; // column-major 4x4
 
 interface GltfJson {
-  asset?: { version?: string };
+  asset?: { version?: string; generator?: string };
   scene?: number;
   scenes?: { nodes?: number[] }[];
   nodes?: GltfNode[];
@@ -52,6 +52,16 @@ export interface GlbMesh {
   /** 9 floats per triangle (x y z × 3), in the file's own units and frame. */
   positions: Float32Array;
   triangleCount: number;
+  /** The program that wrote the file (asset.generator), used only to guess the up axis. */
+  generator: string;
+}
+
+/**
+ * Guesses which axis is up. glTF itself is Y up, and most exporters (Blender, CAD plug-ins) follow
+ * that; files written by trimesh keep the source scene's axes, and Hadrian's are Z up.
+ */
+export function guessUpAxis(generator: string): "Z" | "Y" {
+  return /trimesh/i.test(generator) ? "Z" : "Y";
 }
 
 function fail(): never {
@@ -120,7 +130,7 @@ export function parseGlb(bytes: ArrayBuffer): GlbMesh {
     positions.set(c, at);
     at += c.length;
   }
-  return { positions, triangleCount: total / 9 };
+  return { positions, triangleCount: total / 9, generator: json.asset?.generator ?? "" };
 }
 
 function readPrimitive(json: GltfJson, bin: ArrayBuffer, prim: GltfPrimitive, world: Mat4): Float32Array {

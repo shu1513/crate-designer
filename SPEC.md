@@ -232,23 +232,23 @@ Skid rule (from the Lockheed Martin Space crate standard P-52 §3.1.4): skids ar
 
 Piece formulas. Cavity L_in × W_in × H_in from 5.2 and 5.4.
 
-Wall thickness w = t + c. L_out = L_in + 2w. W_out = W_in + 2w. End panels fit between side panels; side skins overlap the end panels' edges.
+Wall thickness w = t + c. L_out = L_in + 2w. W_out = W_in + 2w. The base (frame and floor panel) has the cavity footprint L_in × W_in and sits inside the four skins, which hang down over it to the bottom of the base frame (as in Hadrian's photos). End panels fit between side panels; side skins overlap the end panels' edges.
 
 | ID | Piece | Count | Size |
 |---|---|---|---|
 | SK | Skid (if tier has skids) | 2 or 3 | skid stock, length L_out |
-| BF-L | Base frame long rail, on edge | 2 | c × d × L_out |
-| BF-S | Base frame short rail, on edge | 2 | c × d × (W_out − 2c) |
-| BF-J | Base frame joist, on edge | ceil(L_in / 600) − 1 | c × d × (W_out − 2c), evenly spaced |
-| FP | Floor panel | 1 | plywood t, L_out × W_out |
-| SS | Side skin | 2 | plywood t, L_out × H_in |
-| SC-V | Side cleat, vertical edge | 4 | c × d × H_in |
+| BF-L | Base frame long rail, on edge | 2 | c × d × L_in |
+| BF-S | Base frame short rail, on edge | 2 | c × d × (W_in − 2c) |
+| BF-J | Base frame joist, on edge | ceil(L_in / 600) − 1 | c × d × (W_in − 2c), evenly spaced |
+| FP | Floor panel | 1 | plywood t, L_in × W_in |
+| SS | Side skin | 2 | plywood t, L_out × (H_in + t + d) |
+| SC-V | Side cleat, vertical edge | 4 | c × d × (H_in + t + d) |
 | SC-H | Side cleat, horizontal (top and bottom) | 4 | c × d × (L_out − 2d) |
-| SC-M | Side cleat, intermediate vertical | 2 × (ceil(L_out / 600) − 1) | c × d × (H_in − 2d) |
-| ES | End skin | 2 | plywood t, W_in × H_in |
-| EC-V | End cleat, vertical edge | 4 | c × d × H_in |
+| SC-M | Side cleat, intermediate vertical | 2 × (ceil(L_out / 600) − 1) | c × d × (H_in + t − d) |
+| ES | End skin | 2 | plywood t, W_in × (H_in + t + d) |
+| EC-V | End cleat, vertical edge | 4 | c × d × (H_in + t + d) |
 | EC-H | End cleat, horizontal (top and bottom) | 4 | c × d × (W_in − 2d) |
-| EC-M | End cleat, intermediate vertical | 2 × (ceil(W_in / 600) − 1) | c × d × (H_in − 2d) |
+| EC-M | End cleat, intermediate vertical | 2 × (ceil(W_in / 600) − 1) | c × d × (H_in + t − d) |
 | LP | Lid panel | 1 | plywood t, L_out × W_out |
 | LC-L | Lid cleat long, flat | 2 | c × d × L_out |
 | LC-S | Lid cleat short, flat | 2 | c × d × (W_out − 2d) |
@@ -259,15 +259,15 @@ Wall thickness w = t + c. L_out = L_in + 2w. W_out = W_in + 2w. End panels fit b
 
 Outer size: L_out = L_in + 2(t + c). W_out = W_in + 2(t + c). H_out = d + t + H_in + t + c, plus skid height when present.
 
-Corner joint: at each corner the side skin covers the end panel's edge (end skin t plus end cleat c). Screws go through the side vertical cleat and side skin into the end vertical cleat, every 100 mm. Wall panels are fastened down through their bottom horizontal cleats into the floor panel and base frame rails.
+Corner joint: at each corner the side skin covers the end panel's edge (end skin t plus end cleat c). Screws go through the side vertical cleat and side skin into the end vertical cleat, every 100 mm. Wall-to-base joint: each skin is screwed horizontally into the base frame rail behind it every 100 mm along the bottom (wall screws, t + c), so no screw has to pass through a cleat's full height.
 
-Fasteners (R16), following ASTM D6039 §7.1.10 nailing rules applied to screws: skin-to-cleat screws every 100 mm (4 in) on centers, in two staggered rows at least 44 mm apart for cleats 82 mm or wider (19 + 44 + 19 mm), one centred row for narrower cleats, never closer than 19 mm to a cleat edge, driven from the skin side while the panel lies flat, minimum 2 per cleat. Screw length is at least 25 mm and never more than the two thicknesses joined (§7.1.2); the app uses t + c − 3 mm rounded down to a stock length. Frame screws: wall corner joints every 100 mm, 2 per base-frame corner, floor panel into base frame every 300 mm around the perimeter, bottom cleats into the base every 300 mm, lid panel into lid cleats per the skin-to-cleat rule, lid closure into the top wall cleats every 100 mm, 2 per joist end, 3 per cradle or end stop (driven up through the floor panel into the board's bottom edge, or down through the lid into top cradles), 2 per skid per base frame rail crossing. Counts are rounded up to the next 10 and shown as "about N".
+Fasteners (R16), following ASTM D6039 §7.1.10 nailing rules applied to screws: skin-to-cleat screws every 100 mm (4 in) on centers, in two staggered rows at least 44 mm apart for cleats 82 mm or wider (19 + 44 + 19 mm), one centred row for narrower cleats, never closer than 19 mm to a cleat edge, driven from the skin side while the panel lies flat, minimum 2 per cleat. Screw length is at least 25 mm and never more than the two thicknesses joined (§7.1.2); the app uses t + c − 3 mm rounded down to a stock length. Wall screws also fasten the floor panel into the base rails every 300 mm around its edge, each skin into the base rails every 100 mm along the bottom, the lid panel into the lid cleats, and the lid closure into the top wall cleats every 100 mm. Frame screws (lumber to lumber): wall corner joints every 100 mm, 2 per base-frame corner, 2 per joist end, 2 per skid per rail crossing. Board screws (through the floor or lid panel into a cradle board or end stop edge, 3 per board): the longest stock length that is at least 3 mm shorter than t plus the shortest board height, never under 25 mm. Counts are rounded up to the next 10 and shown as "about N".
 
 Wood weight (R17): plywood 600 kg/m³, lumber 500 kg/m³, summed over all pieces, rounded to 0.5 kg.
 
 **Worked example (acceptance fixture): PART-002 × 1, weight 27 kg.**
 Tier T1 (t 10, c 19, d 64, w = 29). Orientation native. Layout 1 × 1. L_in = 1530 + 2 × (3 + 19) = 1574. W_in = (172 + 6) + 2 × 50 = 278. H_in = 25 + 172 + 25 = 222. L_out = 1574 + 58 = 1632. W_out = 278 + 58 = 336. Skids required (L_out ≥ 1524): 2 × 2x4 on edge, 89 mm tall. H_out = 89 + 64 + 10 + 222 + 10 + 19 = 414. Stations: 3 (306, 765, 1224). h_b = 111, h_t = 111.
-Cut list: SK 2 × 38×89×1632; BF-L 2 × 19×64×1632; BF-S 2 × 19×64×298; BF-J 2 × 19×64×298; FP 1 × 10 ply 1632×336; SS 2 × 10 ply 1632×222; SC-V 4 × 19×64×222; SC-H 4 × 19×64×1504; SC-M 4 × 19×64×94; ES 2 × 10 ply 278×222; EC-V 4 × 19×64×222; EC-H 4 × 19×64×150; LP 1 × 10 ply 1632×336; LC-L 2 × 19×64×1632; LC-S 2 × 19×64×208; LC-M 1 × 19×64×208; BC-1..3 and TC-1..3 each 19×111×278 with one pocket; EB 1 × 19×155×278 and 1 × 19×161×278. Wood weight about 30 kg. Gross about 57 kg. Pocket at station 1 (on the 172 mm collar): 178 wide × 86 deep. Stations 2 and 3 (88 mm main shaft): 94 wide × 44 deep; the station that catches the key feature is a few mm wider. End stops: 155 mm tall at the −X end (shaft radius 44) and 161 mm at the +X end (stub radius 50), per the 5.4 end-stop rule.
+Cut list: SK 2 × 38×89×1632; BF-L 2 × 19×64×1574; BF-S 2 × 19×64×240; BF-J 2 × 19×64×240; FP 1 × 10 ply 1574×278; SS 2 × 10 ply 1632×296; SC-V 4 × 19×64×296; SC-H 4 × 19×64×1504; SC-M 4 × 19×64×168; ES 2 × 10 ply 278×296; EC-V 4 × 19×64×296; EC-H 4 × 19×64×150; LP 1 × 10 ply 1632×336; LC-L 2 × 19×64×1632; LC-S 2 × 19×64×208; LC-M 1 × 19×64×208; BC-1..3 and TC-1..3 each 19×111×278 with one pocket; EB 1 × 19×155×278 and 1 × 19×161×278. Wood weight about 30 kg. Gross about 57 kg. Pocket at station 1 (on the 172 mm collar): 178 wide × 86 deep. Stations 2 and 3 (88 mm main shaft): 94 wide × 44 deep; the station that catches the key feature is a few mm wider. End stops: 155 mm tall at the −X end (shaft radius 44) and 161 mm at the +X end (stub radius 50), per the 5.4 end-stop rule.
 
 ### 5.6 Build steps and print package
 
@@ -276,10 +276,10 @@ Step order (R18). The list below gives the groups in order; each group prints as
 2. Cut the pockets: for each cradle board, mark each pocket from the board's left end using the pocket table, then make two vertical saw cuts and one horizontal cut per pocket.
 3. Mark station lines on the floor panel FP. Place bottom cradles BC-n and end stops EB on the lines, flip the panel, and screw up through FP into each board (nothing is under the panel yet, so every screw position is reachable).
 4. Build the base frame: BF-L, BF-S, BF-J. Screw. Fix skids SK underneath (if present).
-5. Set FP (cradles up) onto the base frame and screw down around the edge.
+5. Set FP (cradles up) onto the base frame, flush with its edges, and screw down around the edge every 300 mm.
 6. Build the two end panels flat: ES skin with EC-V, EC-H, EC-M cleats. Screw through the skin into the cleats.
 7. Build the two side panels flat: SS skin with SC-V, SC-H, SC-M cleats.
-8. Stand the end panels on FP between the side panels. Screw corners (side cleat through side skin into end cleat), then screw all four bottom cleats down into the base.
+8. Stand the end panels against the base ends so their skins cover the base frame, then the side panels covering the end panels' edges and the base sides. Screw the corners (side cleat through side skin into end cleat) every 100 mm, then screw each skin into the base rail behind it every 100 mm along the bottom.
 9. Build the lid: LP with LC-L, LC-S, LC-M on top; TC-n on the underside at station lines.
 10. Load the parts: (a) If the part has finished surfaces, line each pocket with felt or carpet no thicker than 2 mm. (b) Lower each part into its pockets. (c) Measure the gap at both sides of each bottom pocket. (d) If a gap is larger than 6 mm, cut a wood strip to fill it and screw the strip to the pocket wall. (R12) Note: top pockets cannot be checked after closing; the pocket table is the check.
 11. Fit lid and screw down with wall screws every 100 mm.
@@ -339,6 +339,7 @@ Each decision: options, cost, choice, reason. "Interviewer" means given directly
 - D30 (2026-11-09) Final Codex review of v1.6 found 20 consistency and testability issues; all were adopted because each was a real error or gap fixable in a line or two: stale pocket numbers in the worked example, end-stop heights, seated-pocket depths, equator tie-break, station-search spacing bounds, screw-row width arithmetic (82 mm), T2 screw length (25 mm), missing fastener counts, non-positive piece guard (E10), seated-datum test fixture, up-axis applied before orientation, R12/R21/R23/R25 wording versus behaviour, build-plan order (tier before layout), task coverage, diagonal braces removed from T4, skid two-pass, Q1 closed.
 - D31 (2026-11-09, user: "do what you think is best" after sharing Hadrian's shaft and housing crate photos) Pocket shape is rectangular, straight-cut. Options: (1) rectangular notch sized to the slice's extremes plus g_c, two or three saw cuts, matches the photos, line contact on round parts; (2) curved convex-hull pocket (D17/D26), tighter on round parts, jigsaw cuts and paper templates, more code. Choice: (1). Reason: it is what Hadrian builds today, it is simpler for the builder and the code, and it still follows the part's shape station by station. Supersedes the pocket-shape parts of D17 and D26; the slab sampling, seated datum, station search, and end-stop rules stand.
 - D32 (2026-11-09, after a Codex research pass on pocket failure modes and instruction practice) Adopted into 5.4: bearing scored per board face with the smaller face counting (no straddling a step, no seat from the slab margin); bearing band 1 mm (a tiny boss counts only as itself); exact equator; station spacing floor scaled for short parts; pockets positioned from the slice's actual Y extents (asymmetric sections). Adopted into 5.6/R18 for module 6: one action per step; procedural sentences ≤ 20 words (ASD-STE100); tool and exact fastener size named in the step that uses them; "inside face" and "top" labelled on drawings; a rotation arrow whenever a panel is flipped; lining thickness stated (felt ≤ 2 mm); shimming as a numbered conditional step; a novice builds one crate from the printout as the acceptance check (T-R18b). Declined as over-engineering: pitch/roll clearance analysis, inferring whether a rim or stud can carry load, detecting fragile projections, feasibility search over station combinations.
+- D33 (2026-11-09, after the Codex review of module 5) Base inside the skins. Options: (1) walls standing on an oversized floor panel and screwed down through their bottom cleats (needs a 90 mm screw no tier carries); (2) base with the cavity footprint, skins hanging down over it, walls screwed horizontally into the base rails with the ordinary wall screws, as in Hadrian's photos. Choice: (2). Also: geometry is exact internally and rounded only for display (as 5.4 and R2 say), and board screws get their own length fitted to the shortest board. Declined: a containment test for wood wholly inside the part, because every piece lies outside the part's extents by construction.
 - D27 (recommended, after Codex review) Declined ideas: separate restraint methods per shape family (one hull-pocket rule already yields flat pockets for flat parts and curved pockets for round ones); anti-rotation keepers for shafts (rotation about its own axis does not harm a shaft); span-based structural engineering (replaced by one rule: promote a tier when W_in > 1200 mm); splitting oversized plywood panels (D8, wood of any size is available). Reason: each adds code and pieces for cases the prototype does not need.
 - D22 (recommended) Orientation rule: keep the model's Z-up unless the part is tall and thin. Reason: the modeled "up" is usually the part's natural resting pose; a simple threshold handles shafts modeled standing up.
 - D24 (confirmed by interviewer) One crate holds copies of one part only. No mixed parts.

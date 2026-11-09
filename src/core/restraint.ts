@@ -222,13 +222,15 @@ export function designRestraint(frame: PartFrame, layout: Layout, tier: Tier): R
     const colsInRow = layout.partOrigins.filter((p) => p.row === row).map((p) => p.col);
     for (const st of stations) {
       const e = st.extents;
+      // Exact geometry (SPEC 5.4); the printout rounds for display. The part rests on the pocket floor.
       const h_b = c_floor + e.z_eq;
       const depthBottom = e.z_eq - e.minZ;
       const depthTop = e.maxZ + g_c - e.z_eq;
       if (depthBottom <= 0) throw new DesignError("E6", MESSAGES.E6);
       const h_t = layout.H_in - h_b;
+      const width = e.maxY - e.minY + 2 * g_c;
       const pockets = (depth: number): Pocket[] =>
-        colsInRow.map((col) => ({ col, leftOffset: colsY[col]! + e.minY - g_c, width: e.maxY - e.minY + 2 * g_c, depth }));
+        colsInRow.map((col) => ({ col, leftOffset: colsY[col]! + e.minY - g_c, width, depth }));
       const x = rowX + st.x - c / 2;
       const suffix = layout.rows > 1 ? `${row + 1}.${st.index + 1}` : `${st.index + 1}`;
       bottomBoards.push({ id: `BC-${suffix}`, kind: "bottom-cradle", x, thickness: c, height: h_b, length: layout.W_in, pockets: pockets(depthBottom), rows: [row], stationIndex: st.index });

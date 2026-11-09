@@ -34,6 +34,7 @@ describe("R25–R28: records", () => {
     const store = new RecordStore(":memory:");
     expect(api(store, "POST", "/api/designs", { glbName: "x" }).status).toBe(400);
     expect(api(store, "POST", "/api/designs", { glbName: "x", glbBase64: base64, design: {} }).status).toBe(400);
+    expect(api(store, "POST", "/api/designs", { glbName: "x", glbBase64: base64, design: { ...stored, frame: undefined } }).status).toBe(400); // missing render fields
     expect(api(store, "POST", "/api/designs", { glbName: "x", glbBase64: "", design: stored }).status).toBe(400);
     expect(api(store, "GET", "/api/designs/CR-nope").status).toBe(404);
   });
@@ -48,16 +49,35 @@ describe("R25–R28: records", () => {
     expect((api(store, "GET", "/api/designs").body as unknown[]).length).toBe(1);
   });
 
-  it("T-R26: history lists saved designs with id, date, part, quantity, outer size, and reopens one with its GLB", () => {
+  it("T-R26: history lists saved designs with id, date, part, quantity, outer size, and reopens one exactly as saved", () => {
     const store = new RecordStore(":memory:");
     api(store, "POST", "/api/designs", { glbName: "bracket.glb", glbBase64: base64, design: stored });
     const list = api(store, "GET", "/api/designs").body as { id: string; glbName: string; quantity: number; outer: { L: number } }[];
     expect(list).toHaveLength(1);
     expect(list[0]).toMatchObject({ id: "CR-20261109-001", glbName: "bracket.glb", quantity: 4 });
     expect(list[0]!.outer.L).toBe(design.crate.outer.L);
-    const one = api(store, "GET", "/api/designs/CR-20261109-001").body as { glbBase64: string; design: { steps: unknown[] } };
+    const one = api(store, "GET", "/api/designs/CR-20261109-001").body as { glbBase64: string; design: { steps: unknown[]; crate: { pieces: unknown[] }; frame: { rules: string[] } } };
     expect(one.glbBase64).toBe(base64);
-    expect(one.design.steps.length).toBe(design.steps.length);
+    expect(one.design.steps).toEqual(JSON.parse(JSON.stringify(design.steps)));
+    expect(one.design.crate.pieces).toEqual(JSON.parse(JSON.stringify(design.crate.pieces)));
+    expect(one.design.frame.rules).toEqual(design.frame.rules);
+  });
+
+  it("ids never collide: after importing a sparse id, the next save takes one above the highest number", () => {
+    const store = new RecordStore(":memory:");
+    const file: ExportFile = { format: "crate-designer-records", version: 1, designs: [{ id: "CR-20261109-002", createdAt: "2026-11-09T10:00:00.000Z", glbName: "a.glb", glbBase64: base64, designJson: JSON.stringify(stored), problems: [] }] };
+    api(store, "POST", "/api/import", file);
+    const res = api(store, "POST", "/api/designs", { glbName: "b.glb", glbBase64: base64, design: stored });
+    expect((res.body as { id: string }).id).toBe("CR-20261109-003");
+  });
+
+  it("an import whose second entry violates a constraint inside the transaction rolls the first one back", () => {
+    const store = new RecordStore(":memory:");
+    const entry = (id: string) => ({ id, createdAt: "2026-01-01T00:00:00.000Z", glbName: "a.glb", glbBase64: base64, designJson: JSON.stringify(stored), problems: [] });
+    // Both entries validate, but the second duplicates the first id, so the second INSERT throws after BEGIN.
+    const res = api(store, "POST", "/api/import", { format: "crate-designer-records", version: 1, designs: [entry("CR-20260101-001"), entry("CR-20260101-001")] });
+    expect(res.status).toBe(400);
+    expect((api(store, "GET", "/api/designs").body as unknown[]).length).toBe(0);
   });
 
   it("T-R26b: filters by part name and by date range", () => {
@@ -78,7 +98,7 @@ describe("R25–R28: records", () => {
     const one = api(store, "GET", "/api/designs/CR-20261109-001").body as { problems: { stepId: string; note: string; recordedAt: string }[] };
     expect(one.problems).toHaveLength(1);
     expect(one.problems[0]).toMatchObject({ stepId: "3d", note: "screw split the board", recordedAt: "2026-11-09T12:00:00.000Z" });
-    expect((api(store, "GET", "/api/designs").body as { problems: number }[])[0]!.problems).toBe(1);
+    expect((api(store, "GET", "/api/designs").body as { problems: { stepId: string; note: string }[] }[])[0]!.problems).toEqual([{ stepId: "3d", note: "screw split the board" }]);
     expect(api(store, "POST", "/api/designs/CR-nope/problems", { stepId: "1a" }).status).toBe(404);
   });
 

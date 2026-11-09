@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { Design } from "../core/design.ts";
 import type { DisplayUnit } from "../core/format.ts";
 import { loadPart } from "../core/part.ts";
-import { orientPart } from "../core/orientation.ts";
+import { applyOrientation } from "../core/orientation.ts";
 import { designWorker } from "../worker/client.ts";
 import { base64ToBytes, recordsApi, type ProblemMark } from "./api.ts";
 import { DesignInputs } from "./DesignInputs.tsx";
@@ -60,6 +60,8 @@ export function App() {
     const rev = revision.current;
     setBusy(true);
     setDesignError(null);
+    // A new design starts with no record: no old ID, marks, or warning may carry over (E9).
+    setRecordId(null); setProblems([]); setSaveWarning(null); setReadOnly(false);
     try {
       const res = await designWorker.send({ type: "design", quantity, weightKg });
       if (rev !== revision.current) return; // inputs changed meanwhile: stale result
@@ -89,13 +91,15 @@ export function App() {
 
   // Reopen a saved record exactly as stored (R26); the GLB rebuilds the part triangles for the preview.
   async function openRecord(id: string) {
+    const rev = ++revision.current; // cancels any design in flight
+    setBusy(false);
     try {
       const rec = await recordsApi.get(id);
-      revision.current++;
+      if (rev !== revision.current) return; // another open or a new design superseded this one
       const bytes = base64ToBytes(rec.glbBase64);
       const settings = { modelUnits: rec.design.inputs.modelUnits, upAxis: rec.design.inputs.upAxis };
       const mesh = loadPart(bytes, settings);
-      const frame = orientPart(mesh);
+      const frame = applyOrientation(mesh, rec.design.frame.rules); // the rules it was saved with, not today's
       setDesign({ ...rec.design, frame: { ...rec.design.frame, positions: frame.positions } });
       setPartPositions(mesh.positions);
       setRecordId(rec.id);
@@ -114,8 +118,10 @@ export function App() {
     if (!recordId) return;
     const note = window.prompt(`What went wrong at step ${stepId}? (optional, up to 200 characters)`) ?? null;
     if (note === null) return;
+    const forRecord = recordId;
     try {
-      const mark = await recordsApi.addProblem(recordId, stepId, note.slice(0, 200));
+      const mark = await recordsApi.addProblem(forRecord, stepId, note.slice(0, 200));
+      if (forRecord !== recordId) return; // a different record is open now
       setProblems((p) => [...p, mark]);
     } catch (err) {
       setSaveWarning(`Could not save the problem mark (${(err as Error).message}).`);

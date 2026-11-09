@@ -13,14 +13,26 @@ export interface DesignRow {
   designJson: string;
 }
 export interface ProblemRow { designId: string; stepId: string; note: string; recordedAt: string }
-export interface ListEntry { id: string; createdAt: string; glbName: string; quantity: number; outer: { L: number; W: number; H: number }; problems: number }
+export interface ListEntry { id: string; createdAt: string; glbName: string; quantity: number; outer: { L: number; W: number; H: number }; problems: { stepId: string; note: string }[] }
 
-/** The minimum shape a stored design must have for History to list it (SPEC R26). */
+/** The shape a stored design must have for History to list it and the screen to render it (SPEC R26). */
 export function isStorableDesign(d: unknown): d is { inputs: { quantity: number }; crate: { outer: { L: number; W: number; H: number } }; steps: unknown[] } {
   if (typeof d !== "object" || d === null) return false;
-  const x = d as { inputs?: { quantity?: unknown }; crate?: { outer?: { L?: unknown; W?: unknown; H?: unknown } }; steps?: unknown };
+  const x = d as Record<string, unknown> & {
+    inputs?: { quantity?: unknown; weightKg?: unknown; modelUnits?: unknown; upAxis?: unknown };
+    crate?: { outer?: { L?: unknown; W?: unknown; H?: unknown }; inner?: unknown; pieces?: unknown };
+    frame?: { rules?: unknown; L?: unknown; W?: unknown; H?: unknown };
+    layout?: { partOrigins?: unknown };
+    tier?: { name?: unknown };
+    restraint?: { stations?: unknown };
+  };
   const n = (v: unknown) => typeof v === "number" && Number.isFinite(v) && v > 0;
-  return n(x.inputs?.quantity) && n(x.crate?.outer?.L) && n(x.crate?.outer?.W) && n(x.crate?.outer?.H) && Array.isArray(x.steps);
+  const arr = Array.isArray;
+  return n(x.inputs?.quantity) && n(x.inputs?.weightKg) && typeof x.inputs?.modelUnits === "string" && typeof x.inputs?.upAxis === "string"
+    && n(x.crate?.outer?.L) && n(x.crate?.outer?.W) && n(x.crate?.outer?.H) && arr(x.crate?.pieces) && typeof x.crate?.inner === "object"
+    && arr(x.frame?.rules) && n(x.frame?.L) && n(x.frame?.W) && n(x.frame?.H)
+    && arr(x.layout?.partOrigins) && typeof x.tier?.name === "string" && arr(x.restraint?.stations)
+    && arr(x["fasteners"]) && arr(x["steps"]) && (x["steps"] as unknown[]).every((s) => typeof (s as { id?: unknown }).id === "string" && typeof (s as { text?: unknown }).text === "string");
 }
 
 export class RecordStore {
@@ -39,11 +51,12 @@ export class RecordStore {
       );`);
   }
 
-  /** CR-YYYYMMDD-NNN, numbered per day (SPEC R25). */
+  /** CR-YYYYMMDD-NNN, one above the highest number already used that day (SPEC R25); safe after imports. */
   nextId(now = new Date()): string {
     const day = now.toISOString().slice(0, 10).replace(/-/g, "");
-    const row = this.db.prepare("SELECT COUNT(*) AS n FROM designs WHERE id LIKE ?").get(`CR-${day}-%`) as { n: number };
-    return `CR-${day}-${String(row.n + 1).padStart(3, "0")}`;
+    const rows = this.db.prepare("SELECT id FROM designs WHERE id LIKE ?").all(`CR-${day}-%`) as { id: string }[];
+    const max = rows.reduce((m, r) => Math.max(m, Number(r.id.slice(`CR-${day}-`.length)) || 0), 0);
+    return `CR-${day}-${String(max + 1).padStart(3, "0")}`;
   }
 
   save(glbName: string, glbBytes: Uint8Array, designJson: string, now = new Date()): DesignRow {
@@ -61,14 +74,15 @@ export class RecordStore {
     if (filter.to) { clauses.push("created_at <= ?"); params.push(filter.to.length === 10 ? `${filter.to}T23:59:59.999Z` : filter.to); }
     const where = clauses.length ? `WHERE ${clauses.join(" AND ")}` : "";
     const rows = this.db.prepare(`
-      SELECT d.id, d.created_at, d.glb_name, d.design_json, (SELECT COUNT(*) FROM problems p WHERE p.design_id = d.id) AS problems
-      FROM designs d ${where} ORDER BY d.created_at DESC`).all(...params) as { id: string; created_at: string; glb_name: string; design_json: string; problems: number }[];
+      SELECT d.id, d.created_at, d.glb_name, d.design_json FROM designs d ${where} ORDER BY d.created_at DESC`).all(...params) as
+      { id: string; created_at: string; glb_name: string; design_json: string }[];
     const out: ListEntry[] = [];
     for (const r of rows) {
       let d: unknown = null;
       try { d = JSON.parse(r.design_json); } catch { d = null; }
       if (!isStorableDesign(d)) continue; // a damaged row must not take History down
-      out.push({ id: r.id, createdAt: r.created_at, glbName: r.glb_name, quantity: d.inputs.quantity, outer: d.crate.outer, problems: r.problems });
+      const problems = this.problems(r.id).map((p) => ({ stepId: p.stepId, note: p.note }));
+      out.push({ id: r.id, createdAt: r.created_at, glbName: r.glb_name, quantity: d.inputs.quantity, outer: d.crate.outer, problems });
     }
     return out;
   }

@@ -52,13 +52,17 @@ table.positions td { padding: 1px 8px 1px 0; }
 .history-actions .secondary { width: auto; margin: 0; }
 button.link { background: none; border: none; color: #1d4ed8; cursor: pointer; padding: 0; font-size: 13px; text-decoration: underline; }
 .problems { margin-top: 12px; font-size: 13px; }
+ul.plain { margin: 0; padding-left: 16px; }
 @media print {
   .no-print { display: none !important; }
   .print-only { display: block; }
   body { min-width: 0; }
   .layout { display: block; padding: 0; }
   .column { border: none; padding: 0; }
-  .print-header { font-size: 12px; border-bottom: 1px solid #000; padding-bottom: 4px; margin-bottom: 8px; }
+  /* Repeats at the top of every printed page so each sheet carries the design ID (R25). */
+  .print-header { position: fixed; top: 0; left: 0; right: 0; font-size: 11px; border-bottom: 1px solid #000; padding-bottom: 3px; background: #fff; }
+  .print-package { padding-top: 22px; }
+  @page { margin: 14mm 12mm 12mm; }
   h2 { page-break-before: always; font-size: 16px; }
   section h2:first-child { page-break-before: auto; }
   /* One step per half page (SPEC 5.6): two steps per sheet, never split. */

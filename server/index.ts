@@ -5,11 +5,12 @@ import { dirname, extname, isAbsolute, join, normalize, relative } from "node:pa
 import { fileURLToPath } from "node:url";
 import { handleApi } from "./api.ts";
 import { RecordStore } from "./db.ts";
+import { rejectForeignRequest } from "./guard.ts";
 
 const PORT = Number(process.env.PORT ?? 8787);
 const DIST = fileURLToPath(new URL("../dist/", import.meta.url));
 const DB_PATH = process.env.DB_PATH ?? fileURLToPath(new URL("../data/crate-designer.sqlite", import.meta.url));
-const MAX_BODY = 64 * 1024 * 1024; // a 20 MB GLB as base64 inside JSON
+const MAX_BODY = 256 * 1024 * 1024; // an export file holding several 20 MB GLBs as base64
 
 let store: RecordStore | null = null;
 try {
@@ -70,9 +71,8 @@ function readJsonBody(req: IncomingMessage): Promise<unknown> {
     req.on("data", (chunk: Buffer) => {
       size += chunk.length;
       if (size > MAX_BODY) {
-        reject(new Error("Body too large"));
-        req.destroy();
-        return;
+        reject(Object.assign(new Error("Body too large"), { status: 413 }));
+        return; // keep reading nothing; the caller answers 413 and ends the response
       }
       chunks.push(chunk);
     });
@@ -88,23 +88,11 @@ function readJsonBody(req: IncomingMessage): Promise<unknown> {
   });
 }
 
-const LOCAL_HOSTS = new Set([`localhost:${PORT}`, `127.0.0.1:${PORT}`, `[::1]:${PORT}`]);
-
-/** The service is for the browser on this machine only: same host, same origin, JSON bodies. */
-function rejectForeignRequest(req: IncomingMessage): string | null {
-  const host = req.headers.host ?? "";
-  if (!LOCAL_HOSTS.has(host)) return "Requests must come from this machine (Host header)";
-  const origin = req.headers.origin;
-  if (origin && !LOCAL_HOSTS.has(origin.replace(/^https?:\/\//, ""))) return "Cross-origin requests are not allowed";
-  if (req.method === "POST" && !(req.headers["content-type"] ?? "").startsWith("application/json")) return "POST bodies must be application/json";
-  return null;
-}
-
 const server = createServer(async (req, res) => {
   try {
     const url = new URL(req.url ?? "/", `http://localhost:${PORT}`);
     if (url.pathname.startsWith("/api/")) {
-      const refusal = rejectForeignRequest(req);
+      const refusal = rejectForeignRequest(req.method ?? "GET", { host: req.headers.host, origin: req.headers.origin, "content-type": req.headers["content-type"] }, PORT);
       if (refusal) {
         res.writeHead(403, { "content-type": "application/json; charset=utf-8" });
         res.end(JSON.stringify({ error: refusal }));
@@ -115,7 +103,8 @@ const server = createServer(async (req, res) => {
         try {
           body = await readJsonBody(req);
         } catch (err) {
-          res.writeHead(400, { "content-type": "application/json; charset=utf-8" });
+          const status = (err as { status?: number }).status ?? 400;
+          res.writeHead(status, { "content-type": "application/json; charset=utf-8", connection: "close" });
           res.end(JSON.stringify({ error: (err as Error).message }));
           return;
         }

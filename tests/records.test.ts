@@ -1,0 +1,93 @@
+import { describe, expect, it } from "vitest";
+import { handleApi } from "../server/api.ts";
+import { RecordStore, type ExportFile } from "../server/db.ts";
+import { designFromPart } from "../src/core/design.ts";
+import { loadPart } from "../src/core/part.ts";
+import { buildGlb } from "./helpers/glb.ts";
+
+const glb = buildGlb([{ size: [360, 220, 258], center: [180, 0, 129] }]);
+const design = designFromPart(loadPart(glb, { modelUnits: "mm", upAxis: "Z" }), { quantity: 4, weightKg: 21.5, modelUnits: "mm", upAxis: "Z" });
+const stored = { ...design, frame: { ...design.frame, positions: undefined } }; // positions come back from the GLB
+const base64 = Buffer.from(glb).toString("base64");
+
+function api(store: RecordStore, method: string, pathname: string, body: unknown = null, query = "", now = new Date("2026-11-09T12:00:00Z")) {
+  return handleApi({ method, pathname, query: new URLSearchParams(query), body }, store, now);
+}
+
+describe("R25–R28: records", () => {
+  it("T-R25: saving stores exactly the GLB, the design JSON, and a timestamp under a CR-YYYYMMDD-NNN id", () => {
+    const store = new RecordStore(":memory:");
+    const res = api(store, "POST", "/api/designs", { glbName: "bracket.glb", glbBase64: base64, design: stored });
+    expect(res.status).toBe(201);
+    const { id } = res.body as { id: string };
+    expect(id).toBe("CR-20261109-001");
+    const second = api(store, "POST", "/api/designs", { glbName: "bracket.glb", glbBase64: base64, design: stored });
+    expect((second.body as { id: string }).id).toBe("CR-20261109-002");
+    const row = store.get(id)!;
+    expect(Object.keys(row).sort()).toEqual(["createdAt", "designJson", "glbBytes", "glbName", "id", "problems"]);
+    expect(Buffer.from(row.glbBytes).equals(Buffer.from(glb))).toBe(true);
+    expect(JSON.parse(row.designJson).crate.outer).toEqual(design.crate.outer);
+    expect(row.problems).toEqual([]);
+  });
+
+  it("rejects bad save bodies and oversized files", () => {
+    const store = new RecordStore(":memory:");
+    expect(api(store, "POST", "/api/designs", { glbName: "x" }).status).toBe(400);
+    expect(api(store, "POST", "/api/designs", { glbName: "x", glbBase64: "", design: {} }).status).toBe(400);
+    expect(api(store, "GET", "/api/designs/CR-nope").status).toBe(404);
+  });
+
+  it("T-R26: history lists saved designs with id, date, part, quantity, outer size, and reopens one with its GLB", () => {
+    const store = new RecordStore(":memory:");
+    api(store, "POST", "/api/designs", { glbName: "bracket.glb", glbBase64: base64, design: stored });
+    const list = api(store, "GET", "/api/designs").body as { id: string; glbName: string; quantity: number; outer: { L: number } }[];
+    expect(list).toHaveLength(1);
+    expect(list[0]).toMatchObject({ id: "CR-20261109-001", glbName: "bracket.glb", quantity: 4 });
+    expect(list[0]!.outer.L).toBe(design.crate.outer.L);
+    const one = api(store, "GET", "/api/designs/CR-20261109-001").body as { glbBase64: string; design: { steps: unknown[] } };
+    expect(one.glbBase64).toBe(base64);
+    expect(one.design.steps.length).toBe(design.steps.length);
+  });
+
+  it("T-R26b: filters by part name and by date range", () => {
+    const store = new RecordStore(":memory:");
+    api(store, "POST", "/api/designs", { glbName: "bracket.glb", glbBase64: base64, design: stored }, "", new Date("2025-11-09T12:00:00Z"));
+    api(store, "POST", "/api/designs", { glbName: "shaft.glb", glbBase64: base64, design: stored }, "", new Date("2026-11-09T12:00:00Z"));
+    expect((api(store, "GET", "/api/designs", null, "part=shaft").body as unknown[]).length).toBe(1);
+    expect((api(store, "GET", "/api/designs", null, "from=2026-01-01").body as unknown[]).length).toBe(1);
+    expect((api(store, "GET", "/api/designs", null, "from=2025-01-01&to=2025-12-31").body as { id: string }[]).map((r) => r.id)).toEqual(["CR-20251109-001"]);
+    expect((api(store, "GET", "/api/designs").body as unknown[]).length).toBe(2);
+  });
+
+  it("T-R27: a problem mark on a step is saved with its note and timestamp and counted in history", () => {
+    const store = new RecordStore(":memory:");
+    api(store, "POST", "/api/designs", { glbName: "bracket.glb", glbBase64: base64, design: stored });
+    const res = api(store, "POST", "/api/designs/CR-20261109-001/problems", { stepId: "3d", note: "screw split the board" });
+    expect(res.status).toBe(201);
+    const one = api(store, "GET", "/api/designs/CR-20261109-001").body as { problems: { stepId: string; note: string; recordedAt: string }[] };
+    expect(one.problems).toHaveLength(1);
+    expect(one.problems[0]).toMatchObject({ stepId: "3d", note: "screw split the board", recordedAt: "2026-11-09T12:00:00.000Z" });
+    expect((api(store, "GET", "/api/designs").body as { problems: number }[])[0]!.problems).toBe(1);
+    expect(api(store, "POST", "/api/designs/CR-nope/problems", { stepId: "1a" }).status).toBe(404);
+  });
+
+  it("T-R28: export then import into an empty store restores everything; importing twice adds nothing", () => {
+    const a = new RecordStore(":memory:");
+    api(a, "POST", "/api/designs", { glbName: "bracket.glb", glbBase64: base64, design: stored });
+    api(a, "POST", "/api/designs/CR-20261109-001/problems", { stepId: "2a", note: "" });
+    const file = api(a, "GET", "/api/export").body as ExportFile;
+    expect(file.format).toBe("crate-designer-records");
+    const b = new RecordStore(":memory:");
+    expect(api(b, "POST", "/api/import", file).body).toEqual({ added: 1, skipped: 0 });
+    expect(api(b, "POST", "/api/import", file).body).toEqual({ added: 0, skipped: 1 });
+    const one = api(b, "GET", "/api/designs/CR-20261109-001").body as { glbBase64: string; problems: unknown[] };
+    expect(one.glbBase64).toBe(base64);
+    expect(one.problems).toHaveLength(1);
+    expect(api(b, "POST", "/api/import", { format: "other" }).status).toBe(400);
+  });
+
+  it("without a store the API answers 503 but health still works", () => {
+    const res = handleApi({ method: "GET", pathname: "/api/designs", query: new URLSearchParams(), body: null }, null);
+    expect(res.status).toBe(503);
+  });
+});

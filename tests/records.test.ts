@@ -71,6 +71,12 @@ describe("R25–R28: records", () => {
     expect((res.body as { id: string }).id).toBe("CR-20261109-003");
   });
 
+  it("import refuses ids with an oversized suffix", () => {
+    const store = new RecordStore(":memory:");
+    const entry = { id: "CR-20260101-99999999999999999999", createdAt: "2026-01-01T00:00:00.000Z", glbName: "a.glb", glbBase64: base64, designJson: JSON.stringify(stored), problems: [] };
+    expect(api(store, "POST", "/api/import", { format: "crate-designer-records", version: 1, designs: [entry] }).status).toBe(400);
+  });
+
   it("an import file that repeats an id adds it once and skips the repeat; History shows one row", () => {
     const store = new RecordStore(":memory:");
     const entry = (id: string) => ({ id, createdAt: "2026-01-01T00:00:00.000Z", glbName: "a.glb", glbBase64: base64, designJson: JSON.stringify(stored), problems: [] });

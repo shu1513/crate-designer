@@ -7,6 +7,8 @@ export interface LoadedPart {
   fileName: string;
   bytes: ArrayBuffer;
   summary: PartSummary;
+  modelUnits: ModelUnits;
+  upAxis: UpAxis;
 }
 
 interface Props {
@@ -35,10 +37,10 @@ export function PartInput({ onLoaded }: Props) {
       if (seq !== loadSeq.current) return; // a newer load superseded this one
       if (res.type === "partLoaded") {
         setSummary(res.summary);
-        onLoaded({ fileName: name, bytes: data, summary: res.summary });
+        onLoaded({ fileName: name, bytes: data, summary: res.summary, modelUnits: units, upAxis: up });
       } else {
         setSummary(null);
-        setError(res.message);
+        setError(res.type === "error" ? res.message : "Unexpected reply from the measuring step.");
         onLoaded(null);
       }
     } catch (err) {

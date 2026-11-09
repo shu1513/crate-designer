@@ -135,19 +135,6 @@ export function slabExtents(positions: Float32Array, x0: number, x1: number, bx0
   return { minY, maxY, minZ, maxZ, bearingWidth: Math.min(bearing(0), bearing(1)), z_eq, pointCount: ys.length };
 }
 
-/** The triangles whose X range touches [x0, x1], so a station's candidates scan only nearby geometry. */
-export function trianglesInRange(positions: Float32Array, x0: number, x1: number): Float32Array {
-  const keep: number[] = [];
-  for (let i = 0; i < positions.length; i += 9) {
-    const xs = [positions[i]!, positions[i + 3]!, positions[i + 6]!];
-    if (Math.max(...xs) < x0 || Math.min(...xs) > x1) continue;
-    keep.push(i);
-  }
-  const out = new Float32Array(keep.length * 9);
-  keep.forEach((i, k) => out.set(positions.subarray(i, i + 9), k * 9));
-  return out;
-}
-
 /** Number of stations and their nominal positions: evenly from 20% to 80% of the length. */
 export function nominalStations(L: number): number[] {
   const n = Math.max(2, Math.ceil((0.6 * L) / CLEARANCE.maxStationSpacing) + 1);
@@ -172,8 +159,6 @@ export function chooseStations(frame: PartFrame, tier: Tier): Station[] {
   const stations: Station[] = [];
   nominalStations(frame.L).forEach((nominal, index) => {
     const reach = Math.floor((0.1 * frame.L) / SEARCH_STEP);
-    // One pass over the mesh per station: keep only triangles near the candidate window.
-    const nearby = trianglesInRange(frame.positions, nominal - reach * SEARCH_STEP - half, nominal + reach * SEARCH_STEP + half);
     let best: Station | null = null;
     let bestScore = -Infinity;
     let bestDist = Infinity;
@@ -182,7 +167,7 @@ export function chooseStations(frame: PartFrame, tier: Tier): Station[] {
       if (x - half < 0 || x + half > frame.L) continue;
       const prev = stations[stations.length - 1];
       if (prev && (x - prev.x < minStationSpacing || x - prev.x > maxStationSpacing)) continue;
-      const extents = slabExtents(nearby, x - half, x + half, x - tier.c / 2, x + tier.c / 2);
+      const extents = slabExtents(frame.positions, x - half, x + half, x - tier.c / 2, x + tier.c / 2);
       if (!extents) continue;
       if (extents.z_eq - extents.minZ <= 0) continue; // no usable pocket depth here (widest point is the floor)
       const dist = Math.abs(k * SEARCH_STEP);

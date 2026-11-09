@@ -1,8 +1,10 @@
 import { DesignError, MESSAGES } from "../core/errors.ts";
-import { loadPart, type PartMesh } from "../core/part.ts";
+import { designFromPart } from "../core/design.ts";
+import { loadPart, type ModelUnits, type PartMesh, type UpAxis } from "../core/part.ts";
 import type { WorkerRequest, WorkerResponse } from "./protocol.ts";
 
 let currentPart: PartMesh | null = null;
+let currentSettings: { modelUnits: ModelUnits; upAxis: UpAxis } = { modelUnits: "m", upAxis: "Z" };
 
 function reply(response: WorkerResponse): void {
   self.postMessage(response);
@@ -13,9 +15,16 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
   try {
     switch (request.type) {
       case "loadPart": {
-        currentPart = loadPart(request.bytes, { modelUnits: request.modelUnits, upAxis: request.upAxis });
+        currentSettings = { modelUnits: request.modelUnits, upAxis: request.upAxis };
+        currentPart = loadPart(request.bytes, currentSettings);
         const { triangleCount, dims, warnings } = currentPart;
         reply({ id: request.id, type: "partLoaded", summary: { triangleCount, dims, warnings } });
+        break;
+      }
+      case "design": {
+        if (!currentPart) throw new DesignError("E1", MESSAGES.E1);
+        const design = designFromPart(currentPart, { quantity: request.quantity, weightKg: request.weightKg, ...currentSettings });
+        reply({ id: request.id, type: "designed", design });
         break;
       }
       default:
@@ -23,7 +32,7 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
         reply({ id: (request as { id: number }).id, type: "error", code: "E1", message: "Unknown worker request" });
     }
   } catch (err) {
-    currentPart = null;
+    if (request.type === "loadPart") currentPart = null;
     if (err instanceof DesignError) {
       reply({ id: request.id, type: "error", code: err.code, message: err.message });
     } else {

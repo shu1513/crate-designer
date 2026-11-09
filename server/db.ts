@@ -55,7 +55,10 @@ export class RecordStore {
   nextId(now = new Date()): string {
     const day = now.toISOString().slice(0, 10).replace(/-/g, "");
     const rows = this.db.prepare("SELECT id FROM designs WHERE id LIKE ?").all(`CR-${day}-%`) as { id: string }[];
-    const max = rows.reduce((m, r) => Math.max(m, Number(r.id.slice(`CR-${day}-`.length)) || 0), 0);
+    const max = rows.reduce((m, r) => {
+      const n = Number(r.id.slice(`CR-${day}-`.length));
+      return Number.isSafeInteger(n) && n > 0 && n < 1_000_000 ? Math.max(m, n) : m;
+    }, 0);
     return `CR-${day}-${String(max + 1).padStart(3, "0")}`;
   }
 
@@ -123,7 +126,7 @@ export class RecordStore {
     if (!file || typeof file !== "object" || file.format !== "crate-designer-records" || !Array.isArray(file.designs)) {
       throw new Error("Not a Crate Designer export file");
     }
-    const idOk = /^CR-\d{8}-\d{3,}$/;
+    const idOk = /^CR-\d{8}-\d{3,6}$/; // bounded suffix so the per-day counter stays a small integer
     for (const d of file.designs) {
       let parsed: unknown = null;
       try { parsed = JSON.parse(d.designJson); } catch { parsed = null; }

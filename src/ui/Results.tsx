@@ -10,18 +10,19 @@ type Tab = "summary" | "cutlist" | "fasteners" | "steps";
 interface ResultsProps {
   design: Design;
   recordId: string | null;
+  fileName?: string | null;
   problems?: ProblemMark[];
   onReportProblem?: (stepId: string) => void;
 }
 
-export function Results({ design, recordId, problems = [], onReportProblem }: ResultsProps) {
+export function Results({ design, recordId, fileName = null, problems = [], onReportProblem }: ResultsProps) {
   const [tab, setTab] = useState<Tab>("summary");
   const u = useUnits();
   const { outer, skids } = design.crate;
   return (
     <div className="results">
       <div className="verdict no-print">
-        <strong>Crate {u.size(outer.L, outer.W, outer.H)}</strong>{skids ? `, ${skids} skids` : ", no skids"}, {design.crate.pieces.length} kinds of piece, about {u.kg(design.woodKg)} of wood.
+        <strong>Crate {u.size(outer.L, outer.W, outer.H)}</strong>{skids ? `, ${skids} skids` : ", no skids"}, about {u.kg(design.woodKg)} of wood.
         {recordId ? ` Saved as ${recordId}.` : ""}
         <button className="link" onClick={() => window.print()}>Print the build package</button>
       </div>
@@ -34,13 +35,13 @@ export function Results({ design, recordId, problems = [], onReportProblem }: Re
       </nav>
       <div className="tab-body no-print">
         {tab === "summary" && <Summary design={design} recordId={recordId} problems={problems} />}
-        {tab === "cutlist" && <CutList design={design} />}
+        {tab === "cutlist" && <><CutList design={design} /><h3>Cradle boards and their pockets</h3><Boards design={design} /></>}
         {tab === "fasteners" && <Fasteners design={design} />}
         {tab === "steps" && <Steps design={design} problems={problems} onReportProblem={onReportProblem} checklist />}
       </div>
       {/* Print package (SPEC R19): summary, cut list, fasteners, board drawings, steps. */}
       <div className="print-only print-package">
-        <PrintHeader design={design} recordId={recordId} />
+        <PrintHeader design={design} recordId={recordId} fileName={fileName} />
         <Summary design={design} recordId={recordId} problems={problems} />
         <h2>Pieces to cut</h2>
         <CutList design={design} />
@@ -49,16 +50,17 @@ export function Results({ design, recordId, problems = [], onReportProblem }: Re
         <h2>Cradle boards and their pockets</h2>
         <Boards design={design} />
         <h2>Build steps</h2>
-        <Steps design={design} />
+        <Steps design={design} problems={problems} />
       </div>
     </div>
   );
 }
 
-function PrintHeader({ design, recordId }: { design: Design; recordId: string | null }) {
+function PrintHeader({ design, recordId, fileName }: { design: Design; recordId: string | null; fileName?: string | null }) {
+  const u = useUnits();
   return (
     <div className="print-header">
-      <strong>Crate Designer</strong> · Design {recordId ?? "not saved"} · {design.inputs.quantity} × part · {new Date().toLocaleDateString()}
+      <strong>Crate Designer</strong> · Design {recordId ?? "not saved"} · {fileName ? `${fileName} · ` : ""}{design.inputs.quantity} × part, {u.kg(design.inputs.weightKg)} each · measurements in {u.unit === "mm" ? "millimetres" : "inches"} · printed {new Date().toLocaleDateString()}
     </div>
   );
 }
@@ -77,7 +79,7 @@ export function Summary({ design, recordId, problems = [] }: { design: Design; r
           <tr><th>Part orientation</th><td>{orientation}; long side along the crate length</td></tr>
           <tr><th>Outer size (L × W × H)</th><td>{u.size(crate.outer.L, crate.outer.W, crate.outer.H)}{crate.skids ? " including skids" : ""}</td></tr>
           <tr><th>Inside size (L × W × H)</th><td>{u.size(crate.inner.L, crate.inner.W, crate.inner.H)}</td></tr>
-          <tr><th>Wood to use</th><td>plywood {tier.plywoodLabel}, lumber {tier.stockLabel}{crate.skids ? `, ${crate.skids} skids ${tier.skid.label}` : ", no skids"} (size class {tier.name}{design.promoted ? ", moved up one class for the wide span" : ""})</td></tr>
+          <tr><th>Wood to use</th><td>plywood {tier.plywoodLabel}, lumber {tier.stockLabel}{crate.skids ? `, ${crate.skids} skids ${tier.skid.label}` : ", no skids"}</td></tr>
           <tr><th>Weights</th><td>parts {u.kg(design.netKg)} + wood {u.kg(design.woodKg)} = about {u.kg(design.grossKg)}</td></tr>
           <tr><th>Cradle boards</th><td>{design.restraint.stations.length} along each part, at {design.restraint.stations.map((s) => u.len(s.x)).join(", ")} from the part's end</td></tr>
         </tbody>
@@ -150,7 +152,7 @@ export function Steps({ design, problems = [], onReportProblem, checklist = fals
   return (
     <>
     {checklist && (
-      <p className="progress">{done.size} of {design.steps.length} steps ticked off. Tick a step when it is done; the list is for this screen only, the printout has no ticks.</p>
+      <p className="progress">{done.size} of {design.steps.length} done. Tick each step as you finish it.</p>
     )}
     <ol className="steps">
       {design.steps.map((s) => {

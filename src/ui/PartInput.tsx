@@ -37,6 +37,7 @@ export function PartInput({ onLoaded, onChanging }: Props) {
   const [partsList, setPartsList] = useState<PartsListEntry[] | null>(null);
   const [partsListError, setPartsListError] = useState<string | null>(null);
   const loadSeq = useRef(0);
+  const fileInput = useRef<HTMLInputElement>(null);
 
   async function load(name: string, data: ArrayBuffer, units: ModelUnits | "auto", up: UpAxis | "auto", list: PartsListEntry[] | null = partsList, seq = ++loadSeq.current) {
     onChanging();
@@ -139,10 +140,8 @@ export function PartInput({ onLoaded, onChanging }: Props) {
     <div className="part-input">
       <div className="dropzone" onDragOver={(e) => e.preventDefault()} onDrop={onDrop}>
         <p>{fileName ? <strong>{fileName}</strong> : "Drop a .glb file here (and parts.json if you have it)"}</p>
-        <label className="button">
-          Choose files
-          <input type="file" accept=".glb,.json,model/gltf-binary,application/json" multiple onChange={onPick} hidden />
-        </label>
+        <button type="button" className="button" onClick={() => fileInput.current?.click()}>Choose files</button>
+        <input ref={fileInput} type="file" accept=".glb,.json,model/gltf-binary,application/json" multiple onChange={onPick} hidden />
       </div>
       {partsListError && <p className="error">{partsListError}</p>}
       {partsList && (
@@ -171,8 +170,8 @@ export function PartInput({ onLoaded, onChanging }: Props) {
             <option value="in">inches</option>
           </select>
           <span className="hint">
-            {unitsSource === "list" ? "Taken from parts.json." : unitsSource === "guess" ? "Guessed from the part's size." : unitsSource === "user" ? "Set by you." : "Taken from parts.json when present, otherwise guessed from the size."}
-            {" "}A .glb file does not say its unit. If the size shown is far too big or too small, change this.
+            {unitsSource === "list" ? "From parts.json." : unitsSource === "guess" ? "Guessed from the part's size." : unitsSource === "user" ? "Set by you." : "Guessed from the size unless parts.json says."}
+            {" "}Change it if the size shown is far too big or small.
           </span>
         </label>
         <label className="field">
@@ -182,8 +181,8 @@ export function PartInput({ onLoaded, onChanging }: Props) {
             <option value="Y">Most other programs (Y is up)</option>
           </select>
           <span className="hint">
-            {upSource === "list" ? "Taken from parts.json." : upSource === "guess" ? "Guessed from the program that wrote the file." : upSource === "user" ? "Set by you." : "Taken from parts.json when present, otherwise guessed from the program that wrote the file."}
-            {" "}Different programs store "up" differently. If the part is lying on its side or standing on end in the 3D view, switch this.
+            {upSource === "list" ? "From parts.json." : upSource === "guess" ? "Guessed from the program that wrote the file." : upSource === "user" ? "Set by you." : "Guessed unless parts.json says."}
+            {" "}Switch it if the part looks tipped over in the 3D view.
           </span>
         </label>
       </details>

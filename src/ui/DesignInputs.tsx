@@ -9,20 +9,34 @@ interface Props {
   unit: "mm" | "in";
   /** From a matched parts-list entry (R29): prefills untouched fields and offers the quantities. */
   suggested: { id: string; weightKg: number; quantities: number[] } | null;
+  /** Changes when a different part file is loaded; the fields reset so a weight never carries over silently. */
+  partKey: string | null;
 }
 
 const LB_PER_KG = 2.20462;
 
 /** Quantity and weight fields with the "Design crate" button (SPEC R3, E3, E4, R23, R29). */
-export function DesignInputs({ disabled, busy, onDesign, onChange, unit, suggested }: Props) {
+export function DesignInputs({ disabled, busy, onDesign, onChange, unit, suggested, partKey }: Props) {
   const [quantityText, setQuantityText] = useState("1");
   const [weightText, setWeightText] = useState("");
   // Which fields the builder has typed into; a parts-list match only prefills untouched fields.
   const touched = useRef({ quantity: false, weight: false });
+  const lastSuggested = useRef<string | null>(null);
   // The weight in kilograms, updated only when typed or prefilled, so a unit toggle converts the
   // field from this value instead of re-reading the text in the new unit.
   const weightKgRef = useRef<number | null>(null);
   const shown = (kg: number, u: "mm" | "in") => String(Math.round((u === "in" ? kg * LB_PER_KG : kg) * 100) / 100);
+
+  const lastPart = useRef<string | null>(partKey);
+  useEffect(() => {
+    if (lastPart.current === partKey) return;
+    lastPart.current = partKey;
+    touched.current = { quantity: false, weight: false };
+    weightKgRef.current = null;
+    setQuantityText("1");
+    setWeightText("");
+    lastSuggested.current = null; // allow the new file's parts-list match to prefill
+  }, [partKey]);
 
   const lastUnit = useRef(unit);
   useEffect(() => {
@@ -31,7 +45,6 @@ export function DesignInputs({ disabled, busy, onDesign, onChange, unit, suggest
     if (weightKgRef.current !== null) setWeightText(shown(weightKgRef.current, unit));
   }, [unit]);
 
-  const lastSuggested = useRef<string | null>(null);
   useEffect(() => {
     const key = suggested ? `${suggested.id}:${suggested.weightKg}` : null;
     if (key === lastSuggested.current) return;
@@ -76,7 +89,7 @@ export function DesignInputs({ disabled, busy, onDesign, onChange, unit, suggest
         {suggested && suggested.quantities.length > 0 && (
           <span className="chips">
             {suggested.quantities.map((q) => (
-              <button key={q} type="button" className={Number(quantityText) === q ? "chip active" : "chip"} onClick={() => pickQuantity(q)}>{q}</button>
+              <button key={q} type="button" className={Number(quantityText) === q ? "chip active" : "chip"} onClick={() => pickQuantity(q)} aria-pressed={Number(quantityText) === q}>{q}</button>
             ))}
           </span>
         )}

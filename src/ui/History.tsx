@@ -18,6 +18,7 @@ export function History({ onOpen, onReprint }: Props) {
   const [message, setMessage] = useState<string | null>(null);
   const [tick, setTick] = useState(0);
   const seq = useRef(0);
+  const importInput = useRef<HTMLInputElement>(null);
 
   // Date filters are typed as local calendar days; the service compares UTC timestamps.
   const localDayStart = (d: string) => (d ? new Date(`${d}T00:00:00`).toISOString() : undefined);
@@ -85,7 +86,8 @@ export function History({ onOpen, onReprint }: Props) {
       )}
       <div className="history-actions">
         <button className="secondary" onClick={() => void exportAll()}>Export all to a file</button>
-        <label className="button">Import from a file<input type="file" accept="application/json,.json" onChange={importFile} hidden /></label>
+        <button type="button" className="button" onClick={() => importInput.current?.click()}>Import from a file</button>
+        <input ref={importInput} type="file" accept="application/json,.json" onChange={importFile} hidden />
       </div>
     </section>
   );

@@ -4,10 +4,11 @@ import { useUnits } from "./units.tsx";
 
 interface Props {
   onOpen: (id: string) => void;
+  onReprint: (id: string) => void;
 }
 
 /** Saved designs with part-name and date filters, export and import (SPEC R26, R28). */
-export function History({ onOpen }: Props) {
+export function History({ onOpen, onReprint }: Props) {
   const u = useUnits();
   const [part, setPart] = useState("");
   const [from, setFrom] = useState("");
@@ -76,7 +77,7 @@ export function History({ onOpen }: Props) {
                 <td><strong>{r.id}</strong></td><td>{new Date(r.createdAt).toLocaleString()}</td><td>{r.glbName}</td><td>{r.quantity}</td>
                 <td>{u.size(r.outer.L, r.outer.W, r.outer.H)}</td>
                 <td>{r.problems.length === 0 ? "" : <ul className="plain">{r.problems.map((p, i) => <li key={i}>Step {p.stepId}{p.note ? `: ${p.note}` : ""}</li>)}</ul>}</td>
-                <td><button onClick={() => onOpen(r.id)}>Open</button></td>
+                <td className="row-actions"><button onClick={() => onOpen(r.id)}>Open</button> <button onClick={() => onReprint(r.id)}>Reprint</button></td>
               </tr>
             ))}
           </tbody>

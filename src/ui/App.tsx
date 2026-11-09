@@ -30,6 +30,7 @@ export function App() {
   const [problems, setProblems] = useState<ProblemMark[]>([]);
   const [view, setView] = useState<"design" | "history">("design");
   const [readOnly, setReadOnly] = useState(false);
+  const [viewKey, setViewKey] = useState(0); // bumping it re-frames the 3D view
   // Bumped on every input change; worker replies from an older revision are ignored (R23).
   const revision = useRef(0);
   const invalidate = () => { revision.current++; setDesign(null); setDesignError(null); setRecordId(null); setSaveWarning(null); setProblems([]); setReadOnly(false); };
@@ -90,7 +91,7 @@ export function App() {
   }
 
   // Reopen a saved record exactly as stored (R26); the GLB rebuilds the part triangles for the preview.
-  async function openRecord(id: string) {
+  async function openRecord(id: string, andPrint = false) {
     const rev = ++revision.current; // cancels any design in flight
     setBusy(false);
     try {
@@ -108,6 +109,7 @@ export function App() {
       setDesignError(null);
       setSaveWarning(null);
       setView("design");
+      if (andPrint) setTimeout(() => window.print(), 400); // let the page render first
     } catch (err) {
       setDesignError(`Could not open ${id}: ${(err as Error).message}`);
       setView("design");
@@ -132,31 +134,47 @@ export function App() {
     <UnitContext.Provider value={unit}>
       <div className="layout">
         <aside className="column inputs no-print">
-          <h1>Crate Designer</h1>
-          <div className="unit-toggle" role="group" aria-label="Units">
-            <button className={unit === "mm" ? "active" : ""} onClick={() => setUnit("mm")}>mm</button>
-            <button className={unit === "in" ? "active" : ""} onClick={() => setUnit("in")}>in</button>
+          <div className="title-row">
+            <h1>Crate Designer</h1>
+            <div className="unit-toggle" role="group" aria-label="Show measurements in">
+              <button className={unit === "mm" ? "active" : ""} onClick={() => setUnit("mm")} title="Show measurements in millimetres">mm</button>
+              <button className={unit === "in" ? "active" : ""} onClick={() => setUnit("in")} title="Show measurements in inches">in</button>
+            </div>
           </div>
-          <PartInput onLoaded={onPartLoaded} onChanging={invalidate} />
-          <DesignInputs disabled={!part || readOnly} busy={busy} unit={unit} onDesign={runDesign} onChange={invalidate} suggested={part?.match ? { id: part.match.id, weightKg: part.match.massKg, quantities: part.match.suggestedQuantities } : null} />
-          <button className="secondary" disabled={!design} onClick={() => window.print()}>Print</button>
-          <button className="secondary" onClick={() => setView(view === "history" ? "design" : "history")}>{view === "history" ? "Back to design" : "History"}</button>
-          {readOnly && <p className="status">Showing saved design {recordId} exactly as it was saved. Drop a part file to start a new design.</p>}
+          <section className={`step-section ${part ? "done" : "current"}`}>
+            <h2><span className="num">1</span> Add the part file <span className="state">{part ? "done" : ""}</span></h2>
+            <PartInput onLoaded={onPartLoaded} onChanging={invalidate} />
+          </section>
+          <section className={`step-section ${!part ? "" : design ? "done" : "current"}`}>
+            <h2><span className="num">2</span> How many, and how heavy <span className="state">{design ? "done" : ""}</span></h2>
+            <DesignInputs disabled={!part || readOnly} busy={busy} unit={unit} onDesign={runDesign} onChange={invalidate} suggested={part?.match ? { id: part.match.id, weightKg: part.match.massKg, quantities: part.match.suggestedQuantities } : null} />
+          </section>
+          <section className={`step-section ${design ? "current" : ""}`}>
+            <h2><span className="num">3</span> Print and build</h2>
+            {design && recordId && <p className="status">Saved as <strong>{recordId}</strong>. This ID is printed on every page.</p>}
+            {design && !recordId && saveWarning && <p className="warning">{saveWarning} The design still works and prints.</p>}
+            <button className="secondary" disabled={!design} onClick={() => window.print()}>Print the build package</button>
+            <button className="secondary" onClick={() => setView(view === "history" ? "design" : "history")}>{view === "history" ? "Back to the design" : "Past designs (History)"}</button>
+            {readOnly && <p className="status">Showing saved design {recordId} exactly as it was saved. Drop a part file to start a new design.</p>}
+          </section>
           <p className="status muted">
             Service: {health ? `ok (v${health.version})` : healthError ? `unreachable (${healthError})` : "checking…"}
           </p>
         </aside>
         <main className="column preview no-print">
-          {design && (
+          {(design || partPositions) && (
             <div className="preview-controls">
-              <label><input type="checkbox" checked={hideLid} onChange={(e) => setHideLid(e.target.checked)} /> Hide lid</label>
-              <label><input type="checkbox" checked={hideWalls} onChange={(e) => setHideWalls(e.target.checked)} /> Hide walls</label>
+              {design && <label><input type="checkbox" checked={hideLid} onChange={(e) => setHideLid(e.target.checked)} /> Hide lid</label>}
+              {design && <label><input type="checkbox" checked={hideWalls} onChange={(e) => setHideWalls(e.target.checked)} /> Hide walls</label>}
+              <button className="link" onClick={() => setViewKey((k) => k + 1)}>Reset view</button>
+              <span className="legend"><i className="sw part" /> your part <i className="sw ply" /> plywood <i className="sw lumber" /> lumber and boards</span>
             </div>
           )}
-          {(design || partPositions) ? <Preview3D design={design} partPositions={partPositions} hideLid={hideLid} hideWalls={hideWalls} /> : <p className="muted">The 3D view of your part, and then of the crate around it, appears here.</p>}
+          {(design || partPositions) ? <Preview3D key={viewKey} design={design} partPositions={partPositions} hideLid={hideLid} hideWalls={hideWalls} /> : <p className="muted">The 3D view of your part, and then of the crate around it, appears here. Drag to turn it, scroll to zoom.</p>}
+          {design && <p className="muted size-line">Outside size {Math.round(design.crate.outer.L)} × {Math.round(design.crate.outer.W)} × {Math.round(design.crate.outer.H)} mm{design.crate.skids ? " including skids" : ""}. Drag to turn, scroll to zoom.</p>}
         </main>
         <section className="column results-column">
-          {view === "history" && <History onOpen={(id) => void openRecord(id)} />}
+          {view === "history" && <History onOpen={(id) => void openRecord(id)} onReprint={(id) => void openRecord(id, true)} />}
           {view === "design" && designError && <div className="error-box"><strong>Cannot design a crate for this input</strong><p>{designError}</p></div>}
           {view === "design" && !designError && !design && <p className="muted no-print">The overview, pieces to cut, screws, and build steps appear here after you press Design crate.</p>}
           {view === "design" && saveWarning && <p className="warning no-print">{saveWarning}</p>}

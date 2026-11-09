@@ -139,7 +139,7 @@ export function PartInput({ onLoaded, onChanging }: Props) {
   return (
     <div className="part-input">
       <div className="dropzone" onDragOver={(e) => e.preventDefault()} onDrop={onDrop}>
-        <p>{fileName ? <strong>{fileName}</strong> : "Drop a .glb file here (and parts.json if you have it)"}</p>
+        <p>{fileName ? <strong>{fileName}</strong> : <>Drop the part's <strong>.glb</strong> file here, together with <strong>parts.json</strong> if you have it.</>}</p>
         <button type="button" className="button" onClick={() => fileInput.current?.click()}>Choose files</button>
         <input ref={fileInput} type="file" accept=".glb,.json,model/gltf-binary,application/json" multiple onChange={onPick} hidden />
       </div>

@@ -73,9 +73,16 @@ const EXTREME_TOL = 0.01;
 const SLAB_MARGIN = 2;
 const SEARCH_STEP = 10;
 
-/** Points of the mesh inside the slab x0..x1 plus the crossings of its two faces, projected to YZ. */
-export function slabExtents(positions: Float32Array, x0: number, x1: number): SlabExtents | null {
-  // face = 0: crossings of the x0 plane, 1: crossings of the x1 plane, 2: vertices strictly inside.
+const ON_PLANE = 1e-6;
+
+/**
+ * Points of the mesh inside the slab x0..x1 (vertices plus crossings of both slab faces),
+ * projected to YZ. Extents come from the whole slab (board plus margin). Bearing is judged on
+ * the two BOARD faces (bx0, bx1), which lie inside the slab, so a seat that exists only in
+ * the margin does not count. Vertices lying exactly on a board face count for that face.
+ */
+export function slabExtents(positions: Float32Array, x0: number, x1: number, bx0 = x0, bx1 = x1): SlabExtents | null {
+  // face = 0: on the bx0 plane, 1: on the bx1 plane, 2: elsewhere in the slab (extents only).
   const ys: number[] = [];
   const zs: number[] = [];
   const faces: number[] = [];
@@ -96,9 +103,15 @@ export function slabExtents(positions: Float32Array, x0: number, x1: number): Sl
       const b = i + ((v + 1) % 3) * 3;
       const ax = positions[a]!, ay = positions[a + 1]!, az = positions[a + 2]!;
       const bx = positions[b]!, by = positions[b + 1]!, bz = positions[b + 2]!;
-      if (ax >= x0 && ax <= x1) add(ay, az, 2);
-      cross(ax, ay, az, bx, by, bz, x0, 0);
-      cross(ax, ay, az, bx, by, bz, x1, 1);
+      if (ax >= x0 && ax <= x1) {
+        const face = Math.abs(ax - bx0) <= ON_PLANE ? 0 : Math.abs(ax - bx1) <= ON_PLANE ? 1 : 2;
+        add(ay, az, face);
+        if (face === 0 && Math.abs(bx1 - bx0) <= ON_PLANE) add(ay, az, 1); // zero-width board: one plane, both faces
+      }
+      cross(ax, ay, az, bx, by, bz, x0, 2);
+      cross(ax, ay, az, bx, by, bz, x1, 2);
+      cross(ax, ay, az, bx, by, bz, bx0, 0);
+      cross(ax, ay, az, bx, by, bz, bx1, 1);
     }
   }
   if (ys.length === 0) return null;
@@ -132,8 +145,11 @@ export function nominalStations(L: number): number[] {
 
 /**
  * Picks each station in increasing X: among candidates nominal + 10k mm (|10k| ≤ 10% of L)
- * that have geometry and keep 100..600 mm to the previous station, take the widest bearing;
- * ties go to the candidate nearest the nominal, then the lower X. No candidate → E6.
+ * that have geometry, a usable pocket depth, and keep min(100, L/2)..600 mm to the previous
+ * station, take the widest bearing; ties go to the candidate nearest the nominal, then the
+ * lower X. No candidate → E6. Greedy by design (SPEC D32): a station is never revisited once
+ * chosen, so an unusual part with gaps can be refused even though some other combination
+ * would have worked.
  */
 export function chooseStations(frame: PartFrame, tier: Tier): Station[] {
   const half = tier.c / 2 + SLAB_MARGIN;
@@ -151,8 +167,9 @@ export function chooseStations(frame: PartFrame, tier: Tier): Station[] {
       if (x - half < 0 || x + half > frame.L) continue;
       const prev = stations[stations.length - 1];
       if (prev && (x - prev.x < minStationSpacing || x - prev.x > maxStationSpacing)) continue;
-      const extents = slabExtents(frame.positions, x - half, x + half);
+      const extents = slabExtents(frame.positions, x - half, x + half, x - tier.c / 2, x + tier.c / 2);
       if (!extents) continue;
+      if (extents.z_eq - extents.minZ <= 0) continue; // no usable pocket depth here (widest point is the floor)
       const dist = Math.abs(k * SEARCH_STEP);
       const betterScore = extents.bearingWidth > bestScore + 1e-9;
       const tieNearer = Math.abs(extents.bearingWidth - bestScore) <= 1e-9 && (dist < bestDist || (dist === bestDist && best !== null && x < best.x));

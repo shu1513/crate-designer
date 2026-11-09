@@ -37,6 +37,19 @@ describe("5.4 slab sampling", () => {
     // ...and scores 0 when one face has no seat at the slab's lowest point (raised second section).
     const raised = mm(buildGlb([{ size: [500, 100, 60], center: [250, 0, 30] }, { size: [500, 200, 120], center: [750, 0, 100] }]));
     expect(slabExtents(raised.positions, 490, 510)!.bearingWidth).toBe(0);
+    // Bearing is judged on the board faces, not the wider slab: two pads only inside the 2 mm margins do not count.
+    const pads = mm(buildGlb([
+      { size: [1000, 100, 60], center: [500, 0, 80] },      // body floating 50 mm up
+      { size: [1.5, 100, 50], center: [489.25, 0, 25] },    // pad in the left margin only
+      { size: [1.5, 100, 50], center: [510.75, 0, 25] },    // pad in the right margin only
+    ]));
+    const padded = slabExtents(pads.positions, 488.5, 511.5, 490.5, 509.5)!;
+    expect(padded.minZ).toBe(0); // extents still see the pads
+    expect(padded.bearingWidth).toBe(0); // but the board faces sit under the floating body
+    // A vertex ring lying exactly on a board face counts for that face.
+    const flush = mm(buildGlb([{ size: [100, 100, 60], center: [50, 0, 30] }]));
+    expect(slabExtents(flush.positions, 80, 120, 100, 120)).not.toBeNull();
+    expect(slabExtents(flush.positions, 80, 102, 80, 100)!.bearingWidth).toBe(100);
   });
 
   it("nominal stations: 2 at 20%/80% for short parts, more every ≤ 600 mm", () => {
@@ -111,6 +124,19 @@ describe("R8: stations and pockets", () => {
     expect(w.bottomBoards[0]!.pockets[0]!.depth).toBe(100); // z_eq at the top of the wide block; floor at the bottom of the narrow one
   });
 
+  it("candidates whose widest point is at the floor are skipped in favour of a usable neighbour", () => {
+    // A beam 60 wide with a short wider "roof" block whose widest points are its own flat bottom at z = 60:
+    // at that spot z_eq is NOT at the floor, so the test uses an inverted-T: wide flat plate on the floor only
+    // under part of the length. Where the plate is, z_eq = plate top > minZ (usable); elsewhere only the beam.
+    const frame = mm(buildGlb([
+      { size: [600, 60, 100], center: [300, 0, 50] },
+      { size: [200, 300, 10], center: [300, 0, 5] },  // wide plate under the middle 200..400
+    ]));
+    const stations = chooseStations(frame, selectTier(10));
+    expect(stations).toHaveLength(2);
+    for (const s of stations) expect(s.extents.z_eq - s.extents.minZ).toBeGreaterThan(0);
+  });
+
   it("E6: a part with no geometry near any station is refused", () => {
     // Two small blocks at the very ends of a 1000 mm span, nothing in the middle 20%..80% ± 10%.
     const frame = mm(buildGlb([
@@ -160,6 +186,29 @@ describe("R9: end stops", () => {
     const boards = [...r.bottomBoards, ...r.endStops].sort((a, b) => a.x - b.x);
     for (let i = 1; i < boards.length; i++) expect(boards[i]!.x).toBeGreaterThanOrEqual(boards[i - 1]!.x + boards[i - 1]!.thickness - 1e-6);
     for (const s of r.endStops) expect(s.height).toBe(Math.min(layout.H_in, c_floor + 258));
+  });
+
+  it.skipIf(!samplesPresent)("T-R9 sample: PART-001 × 8 at 400 kg (T3): 3 stops, none overlapping a cradle board", () => {
+    const bracket = orientPart(loadSample("PART-001").part);
+    const { tier, layout } = planLayout(bracket, 8, 400);
+    expect(tier.name).toBe("T3");
+    const r = designRestraint(bracket, layout, tier);
+    expect(r.endStops).toHaveLength(layout.rows + 1);
+    const boards = [...r.bottomBoards, ...r.endStops].sort((a, b) => a.x - b.x);
+    for (let i = 1; i < boards.length; i++) expect(boards[i]!.x).toBeGreaterThanOrEqual(boards[i - 1]!.x + boards[i - 1]!.thickness - 1e-6);
+  });
+
+  it("a shared stop between two rows is as tall as the taller of its two neighbouring ends", () => {
+    // Square footprint so four copies go 2 × 2; stub 100 tall at the +X end, body 50 tall.
+    const frame = mm(buildGlb([
+      { size: [280, 300, 50], center: [140, 0, 25] },
+      { size: [20, 100, 100], center: [290, 0, 50] },
+    ]));
+    const { tier, layout } = planLayout(frame, 4, 40);
+    expect([layout.rows, layout.cols]).toEqual([2, 2]);
+    const r = designRestraint(frame, layout, tier);
+    expect(r.endStops.map((s) => s.height)).toEqual([c_floor + 50, c_floor + 100, c_floor + 100]);
+    expect(r.endStops[1]!.rows).toEqual([0, 1]);
   });
 
   it("end stops reach a raised stub at one end and the body at the other, capped at the cavity height", () => {

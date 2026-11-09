@@ -88,10 +88,28 @@ function readJsonBody(req: IncomingMessage): Promise<unknown> {
   });
 }
 
+const LOCAL_HOSTS = new Set([`localhost:${PORT}`, `127.0.0.1:${PORT}`, `[::1]:${PORT}`]);
+
+/** The service is for the browser on this machine only: same host, same origin, JSON bodies. */
+function rejectForeignRequest(req: IncomingMessage): string | null {
+  const host = req.headers.host ?? "";
+  if (!LOCAL_HOSTS.has(host)) return "Requests must come from this machine (Host header)";
+  const origin = req.headers.origin;
+  if (origin && !LOCAL_HOSTS.has(origin.replace(/^https?:\/\//, ""))) return "Cross-origin requests are not allowed";
+  if (req.method === "POST" && !(req.headers["content-type"] ?? "").startsWith("application/json")) return "POST bodies must be application/json";
+  return null;
+}
+
 const server = createServer(async (req, res) => {
   try {
     const url = new URL(req.url ?? "/", `http://localhost:${PORT}`);
     if (url.pathname.startsWith("/api/")) {
+      const refusal = rejectForeignRequest(req);
+      if (refusal) {
+        res.writeHead(403, { "content-type": "application/json; charset=utf-8" });
+        res.end(JSON.stringify({ error: refusal }));
+        return;
+      }
       let body: unknown = null;
       if (req.method === "POST") {
         try {

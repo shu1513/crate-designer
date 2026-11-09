@@ -1,5 +1,5 @@
 import { ALGORITHM_VERSION } from "../src/core/version.ts";
-import type { ExportFile, RecordStore } from "./db.ts";
+import { isStorableDesign, type ExportFile, type RecordStore } from "./db.ts";
 
 export type ApiResponse = { status: number; body: unknown };
 
@@ -26,6 +26,7 @@ export function handleApi(req: ApiRequest, store: RecordStore | null, now = new 
     if (!b || typeof b.glbName !== "string" || typeof b.glbBase64 !== "string" || typeof b.design !== "object" || b.design === null) {
       return { status: 400, body: { error: "Expected glbName, glbBase64, and design" } };
     }
+    if (!isStorableDesign(b.design)) return { status: 400, body: { error: "Design is missing its inputs, outer size, or steps" } };
     const bytes = Buffer.from(b.glbBase64, "base64");
     if (bytes.byteLength === 0 || bytes.byteLength > 20 * 1024 * 1024) return { status: 400, body: { error: "GLB must be between 1 byte and 20 MB" } };
     const row = store.save(b.glbName, bytes, JSON.stringify(b.design), now);

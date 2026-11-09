@@ -15,6 +15,14 @@ export interface DesignRow {
 export interface ProblemRow { designId: string; stepId: string; note: string; recordedAt: string }
 export interface ListEntry { id: string; createdAt: string; glbName: string; quantity: number; outer: { L: number; W: number; H: number }; problems: number }
 
+/** The minimum shape a stored design must have for History to list it (SPEC R26). */
+export function isStorableDesign(d: unknown): d is { inputs: { quantity: number }; crate: { outer: { L: number; W: number; H: number } }; steps: unknown[] } {
+  if (typeof d !== "object" || d === null) return false;
+  const x = d as { inputs?: { quantity?: unknown }; crate?: { outer?: { L?: unknown; W?: unknown; H?: unknown } }; steps?: unknown };
+  const n = (v: unknown) => typeof v === "number" && Number.isFinite(v) && v > 0;
+  return n(x.inputs?.quantity) && n(x.crate?.outer?.L) && n(x.crate?.outer?.W) && n(x.crate?.outer?.H) && Array.isArray(x.steps);
+}
+
 export class RecordStore {
   private db: DatabaseSync;
 
@@ -55,10 +63,14 @@ export class RecordStore {
     const rows = this.db.prepare(`
       SELECT d.id, d.created_at, d.glb_name, d.design_json, (SELECT COUNT(*) FROM problems p WHERE p.design_id = d.id) AS problems
       FROM designs d ${where} ORDER BY d.created_at DESC`).all(...params) as { id: string; created_at: string; glb_name: string; design_json: string; problems: number }[];
-    return rows.map((r) => {
-      const d = JSON.parse(r.design_json) as { inputs: { quantity: number }; crate: { outer: { L: number; W: number; H: number } } };
-      return { id: r.id, createdAt: r.created_at, glbName: r.glb_name, quantity: d.inputs.quantity, outer: d.crate.outer, problems: r.problems };
-    });
+    const out: ListEntry[] = [];
+    for (const r of rows) {
+      let d: unknown = null;
+      try { d = JSON.parse(r.design_json); } catch { d = null; }
+      if (!isStorableDesign(d)) continue; // a damaged row must not take History down
+      out.push({ id: r.id, createdAt: r.created_at, glbName: r.glb_name, quantity: d.inputs.quantity, outer: d.crate.outer, problems: r.problems });
+    }
+    return out;
   }
 
   get(id: string): (DesignRow & { problems: ProblemRow[] }) | null {
@@ -94,15 +106,35 @@ export class RecordStore {
 
   /** Imports records, skipping any ID that already exists. Returns how many were added. */
   importAll(file: ExportFile): { added: number; skipped: number } {
-    if (file.format !== "crate-designer-records") throw new Error("Not a Crate Designer export file");
+    if (!file || typeof file !== "object" || file.format !== "crate-designer-records" || !Array.isArray(file.designs)) {
+      throw new Error("Not a Crate Designer export file");
+    }
+    const idOk = /^CR-\d{8}-\d{3,}$/;
+    for (const d of file.designs) {
+      let parsed: unknown = null;
+      try { parsed = JSON.parse(d.designJson); } catch { parsed = null; }
+      if (!idOk.test(d.id ?? "") || typeof d.createdAt !== "string" || typeof d.glbName !== "string" || typeof d.glbBase64 !== "string" || !isStorableDesign(parsed) || !Array.isArray(d.problems)) {
+        throw new Error(`Export file has a damaged entry (${d?.id ?? "no id"})`);
+      }
+      for (const p of d.problems) {
+        if (typeof p.stepId !== "string" || typeof p.note !== "string" || typeof p.recordedAt !== "string") throw new Error(`Export file has a damaged problem mark on ${d.id}`);
+      }
+    }
     let added = 0, skipped = 0;
     const insert = this.db.prepare("INSERT INTO designs (id, created_at, glb_name, glb_bytes, design_json) VALUES (?, ?, ?, ?, ?)");
     const insertProblem = this.db.prepare("INSERT INTO problems (design_id, step_id, note, recorded_at) VALUES (?, ?, ?, ?)");
-    for (const d of file.designs) {
-      if (this.get(d.id)) { skipped++; continue; }
-      insert.run(d.id, d.createdAt, d.glbName, Buffer.from(d.glbBase64, "base64"), d.designJson);
-      for (const p of d.problems) insertProblem.run(d.id, p.stepId, p.note, p.recordedAt);
-      added++;
+    this.db.exec("BEGIN");
+    try {
+      for (const d of file.designs) {
+        if (this.get(d.id)) { skipped++; continue; }
+        insert.run(d.id, d.createdAt, d.glbName, Buffer.from(d.glbBase64, "base64"), d.designJson);
+        for (const p of d.problems) insertProblem.run(d.id, p.stepId, p.note.slice(0, 200), p.recordedAt);
+        added++;
+      }
+      this.db.exec("COMMIT");
+    } catch (err) {
+      this.db.exec("ROLLBACK");
+      throw err;
     }
     return { added, skipped };
   }

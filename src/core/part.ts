@@ -62,7 +62,7 @@ export function loadPart(bytes: ArrayBuffer, options: PartOptions): PartMesh {
   const warnings: string[] = [];
   const largest = Math.max(dims.L, dims.W, dims.H);
   if (largest > 20_000 || largest < 10) {
-    warnings.push(warningE7(`${Math.round(dims.L)} × ${Math.round(dims.W)} × ${Math.round(dims.H)} mm`));
+    warnings.push(warningE7(dims.L, dims.W, dims.H));
   }
   return { positions, triangleCount: raw.triangleCount, bounds: { min, max }, dims, warnings };
 }

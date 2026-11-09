@@ -2,6 +2,7 @@ import { useRef, useState, type ChangeEvent, type DragEvent } from "react";
 import type { ModelUnits, UpAxis } from "../core/part.ts";
 import type { PartSummary } from "../worker/protocol.ts";
 import { designWorker } from "../worker/client.ts";
+import { useUnits } from "./units.tsx";
 
 export interface LoadedPart {
   fileName: string;
@@ -13,10 +14,13 @@ export interface LoadedPart {
 
 interface Props {
   onLoaded: (part: LoadedPart | null) => void;
+  /** Called the moment the file or a selector changes, before measuring (SPEC R23). */
+  onChanging: () => void;
 }
 
 /** File drop zone plus model-units and up-axis selectors (SPEC R1, R2, R4). */
-export function PartInput({ onLoaded }: Props) {
+export function PartInput({ onLoaded, onChanging }: Props) {
+  const u = useUnits();
   const [fileName, setFileName] = useState<string | null>(null);
   const [bytes, setBytes] = useState<ArrayBuffer | null>(null);
   const [modelUnits, setModelUnits] = useState<ModelUnits>("m");
@@ -27,6 +31,7 @@ export function PartInput({ onLoaded }: Props) {
   const loadSeq = useRef(0);
 
   async function load(name: string, data: ArrayBuffer, units: ModelUnits, up: UpAxis) {
+    onChanging();
     const seq = ++loadSeq.current;
     setBusy(true);
     setError(null);
@@ -112,11 +117,11 @@ export function PartInput({ onLoaded }: Props) {
       {summary && (
         <div className="measured">
           <p className="status">
-            Part size: {Math.round(summary.dims.L)} × {Math.round(summary.dims.W)} × {Math.round(summary.dims.H)} mm
+            Part size: {u.size(summary.dims.L, summary.dims.W, summary.dims.H)}
             <span className="muted"> ({summary.triangleCount.toLocaleString()} triangles)</span>
           </p>
           {summary.warnings.map((w) => (
-            <p key={w} className="warning">{w}</p>
+            <p key={w} className="warning">{u.text(w)}</p>
           ))}
         </div>
       )}

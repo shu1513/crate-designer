@@ -1,4 +1,4 @@
-import { useState, type ChangeEvent } from "react";
+import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { MESSAGES } from "../core/errors.ts";
 
 interface Props {
@@ -13,6 +13,17 @@ interface Props {
 export function DesignInputs({ disabled, busy, onDesign, onChange, unit }: Props) {
   const [quantityText, setQuantityText] = useState("1");
   const [weightText, setWeightText] = useState("");
+  // The weight the builder typed, kept in kilograms, so a unit toggle converts the field instead of re-reading it.
+  const weightKgRef = useRef<number | null>(null);
+  const lastUnit = useRef(unit);
+  useEffect(() => {
+    if (lastUnit.current === unit) return;
+    lastUnit.current = unit;
+    if (weightKgRef.current !== null) {
+      const shown = unit === "in" ? weightKgRef.current * 2.20462 : weightKgRef.current;
+      setWeightText(String(Math.round(shown * 100) / 100));
+    }
+  }, [unit]);
 
   const quantity = Number(quantityText);
   const quantityOk = quantityText.trim() !== "" && Number.isInteger(quantity) && quantity >= 1;
@@ -20,10 +31,11 @@ export function DesignInputs({ disabled, busy, onDesign, onChange, unit }: Props
   const weightOk = weightText.trim() !== "" && Number.isFinite(weightEntered) && weightEntered > 0;
   // Weight is typed in the display unit; the design always works in kilograms.
   const weightKg = unit === "in" ? weightEntered / 2.20462 : weightEntered;
+  weightKgRef.current = weightOk ? weightKg : null;
 
   const change = (set: (v: string) => void) => (e: ChangeEvent<HTMLInputElement>) => {
     set(e.target.value);
-    onChange();
+    onChange(); // a typed change invalidates the design; a unit toggle (handled above) does not
   };
 
   return (

@@ -42,8 +42,9 @@ export function Preview3D({ design, partPositions, hideLid, hideWalls }: Props) 
     sun.position.set(1, -2, 3);
     scene.add(sun);
 
-    const wood = new THREE.MeshLambertMaterial({ color: 0xdeb887 });
-    const woodDark = new THREE.MeshLambertMaterial({ color: 0xc69c6d });
+    // Plywood pale and yellowish, lumber and boards a clearly darker red-brown, so the two read apart at a glance.
+    const wood = new THREE.MeshLambertMaterial({ color: 0xf0d9a6 });
+    const woodDark = new THREE.MeshLambertMaterial({ color: 0x8b5a2b });
     const partMat = new THREE.MeshLambertMaterial({ color: 0x3b82f6 });
     const group = new THREE.Group();
     scene.add(group);

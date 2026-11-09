@@ -6,6 +6,7 @@ import { planLayout, type Layout } from "./layout.ts";
 import { designRestraint, type Restraint } from "./restraint.ts";
 import { buildCrate, skidRule, woodWeightKg, type Crate } from "./crate.ts";
 import { countFasteners, type Fastener } from "./fasteners.ts";
+import { buildSteps, type Step } from "./steps.ts";
 import type { Tier } from "./tier.ts";
 
 export interface DesignInputs {
@@ -15,7 +16,7 @@ export interface DesignInputs {
   upAxis: UpAxis;
 }
 
-/** The complete design (SPEC 5.1). Build steps are added by module 6. */
+/** The complete design (SPEC 5.1). */
 export interface Design {
   algorithmVersion: string;
   inputs: DesignInputs;
@@ -26,6 +27,7 @@ export interface Design {
   restraint: Restraint;
   crate: Crate;
   fasteners: Fastener[];
+  steps: Step[];
   netKg: number;
   woodKg: number;
   grossKg: number;
@@ -52,10 +54,11 @@ export function designFromPart(part: PartMesh, inputs: DesignInputs): Design {
   const crate = buildCrate(layout, restraint, tier, skidRule, netKg);
   const fasteners = countFasteners(crate, restraint, tier);
   const woodKg = woodWeightKg(crate.pieces);
+  const steps = buildSteps({ crate, restraint, layout, frame, fasteners });
   return {
     algorithmVersion: ALGORITHM_VERSION,
     inputs: { ...inputs, quantity, weightKg },
-    tier, promoted, frame, layout, restraint, crate, fasteners,
+    tier, promoted, frame, layout, restraint, crate, fasteners, steps,
     netKg, woodKg, grossKg: netKg + woodKg,
     warnings: [...part.warnings],
   };

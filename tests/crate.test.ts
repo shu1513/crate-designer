@@ -42,14 +42,17 @@ describe("R15, R17: crate pieces and sizes", () => {
     expect(cut(d, "SS")).toBe("2 × 10×296×1632");
     expect(cut(d, "SC-V")).toBe("4 × 19×64×296");
     expect(cut(d, "SC-H")).toBe("4 × 19×64×1504");
-    expect(cut(d, "SC-M")).toBe("4 × 19×64×168");
+    expect(cut(d, "SC-M")).toBe("4 × 19×64×104");
     expect(cut(d, "ES")).toBe("2 × 10×296×278");
     expect(cut(d, "EC-V")).toBe("4 × 19×64×296");
     expect(cut(d, "EC-H")).toBe("4 × 19×64×150");
     expect(cut(d, "LP")).toBe("1 × 10×336×1632");
-    expect(cut(d, "LC-L")).toBe("2 × 19×64×1632");
-    expect(cut(d, "LC-S")).toBe("2 × 19×64×208");
-    expect(cut(d, "LC-M")).toBe("1 × 19×64×208");
+    expect(cut(d, "LC-L")).toBe("2 × 19×64×1574");
+    expect(cut(d, "LC-S")).toBe("2 × 19×64×150");
+    expect(cut(d, "LC-M")).toBe("1 × 19×64×150");
+    // The middle lid cleat stays clear of the top cradle boards' screw lines.
+    const lcm = d.crate.pieces.find((p) => p.id === "LC-M")!.placements[0]!;
+    for (const tb of d.restraint.topBoards) expect(lcm.x >= tb.x + tb.thickness + 5 || lcm.x + lcm.dx <= tb.x - 5).toBe(true);
     expect(d.restraint.bottomBoards).toHaveLength(3);
     expect(d.woodKg).toBeGreaterThanOrEqual(27);
     expect(d.woodKg).toBeLessThanOrEqual(33);
@@ -119,7 +122,7 @@ describe("R16: fasteners", () => {
       expect(f.lengthMm).toBeLessThanOrEqual(f.joinsMm);
       expect(f.count).toBeGreaterThan(0);
     }
-    expect(d.fasteners.map((f) => f.size)).toEqual(["#8 × 25 mm", "#8 × 38 mm", "#8 × 32 mm"]); // board screws fit the 25 mm top boards
+    expect(d.fasteners.map((f) => f.size)).toEqual(["#8 × 25 mm", "#8 × 38 mm", "#10 × 75 mm", "#8 × 32 mm", "#10 × 100 mm"]); // corner screws bite the end cleat; board screws fit the 25 mm top boards; skid screws reach through the rail
   });
 });
 

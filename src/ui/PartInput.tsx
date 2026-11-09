@@ -38,9 +38,8 @@ export function PartInput({ onLoaded, onChanging }: Props) {
   const [partsListError, setPartsListError] = useState<string | null>(null);
   const loadSeq = useRef(0);
 
-  async function load(name: string, data: ArrayBuffer, units: ModelUnits | "auto", up: UpAxis | "auto", list: PartsListEntry[] | null = partsList) {
+  async function load(name: string, data: ArrayBuffer, units: ModelUnits | "auto", up: UpAxis | "auto", list: PartsListEntry[] | null = partsList, seq = ++loadSeq.current) {
     onChanging();
-    const seq = ++loadSeq.current;
     setBusy(true);
     setError(null);
     // The worker takes ownership of a copy (transferred, no second copy) so the original stays for re-measuring.
@@ -57,6 +56,13 @@ export function PartInput({ onLoaded, onChanging }: Props) {
         onLoaded({ fileName: name, bytes: data, summary: res.summary, modelUnits: res.summary.modelUnits, upAxis: res.summary.upAxis, match: list ? matchPart(list, name) : null });
       } else {
         setSummary(null);
+        if (res.type === "error" && res.used) {
+          // Keep the selectors honest: show the unit and up axis the failed attempt actually used.
+          setModelUnits(res.used.modelUnits);
+          if (res.used.guessed) setUnitsSource("guess");
+          setUpAxis(res.used.upAxis);
+          if (res.used.upGuessed) setUpSource("guess");
+        }
         setError(res.type === "error" ? res.message : "Unexpected reply from the measuring step.");
         onLoaded(null);
       }
@@ -70,36 +76,39 @@ export function PartInput({ onLoaded, onChanging }: Props) {
     }
   }
 
-  async function acceptFile(file: File, units: ModelUnits | "auto", up: UpAxis | "auto", list: PartsListEntry[] | null) {
-    const data = await file.arrayBuffer();
-    setFileName(file.name);
-    setBytes(data);
-    await load(file.name, data, units, up, list);
-  }
-
   /** A drop may hold a parts list (.json), one or more models (.glb), or both; the list is read first. */
   async function acceptFiles(files: FileList | File[]) {
     const all = Array.from(files);
+    const seq = ++loadSeq.current; // one token for the whole intake, so an older drop finishing late is ignored
     const json = all.find((f) => f.name.toLowerCase().endsWith(".json"));
     let list = partsList;
-    let units: ModelUnits | "auto" = unitsSource === "user" ? modelUnits : "auto";
-    let up: UpAxis | "auto" = upSource === "user" ? upAxis : "auto";
+    // Precedence for each setting: your own choice, then the parts list, then a guess for this file.
+    let units: ModelUnits | "auto" = unitsSource === "user" || unitsSource === "list" ? modelUnits : "auto";
+    let up: UpAxis | "auto" = upSource === "user" || upSource === "list" ? upAxis : "auto";
     if (json) {
       try {
         const text = await json.text();
+        if (seq !== loadSeq.current) return;
         list = parsePartsList(text);
         setPartsList(list);
         setPartsListError(null);
         const settings = parsePartsListSettings(text);
-        if (settings.modelUnits) { units = settings.modelUnits; setModelUnits(settings.modelUnits); setUnitsSource("list"); }
-        if (settings.upAxis) { up = settings.upAxis; setUpAxis(settings.upAxis); setUpSource("list"); }
+        if (settings.modelUnits && unitsSource !== "user") { units = settings.modelUnits; setModelUnits(settings.modelUnits); setUnitsSource("list"); }
+        if (settings.upAxis && upSource !== "user") { up = settings.upAxis; setUpAxis(settings.upAxis); setUpSource("list"); }
       } catch (err) {
         setPartsListError((err as Error).message);
       }
     }
     const glb = all.find((f) => f.name.toLowerCase().endsWith(".glb"));
-    if (glb) await acceptFile(glb, units, up, list);
-    else if (json && fileName && bytes) await load(fileName, bytes, units, up, list); // list dropped after the part: re-measure with its settings and match it
+    if (glb) {
+      const data = await glb.arrayBuffer();
+      if (seq !== loadSeq.current) return;
+      setFileName(glb.name);
+      setBytes(data);
+      await load(glb.name, data, units, up, list, seq);
+    } else if (json && fileName && bytes) {
+      await load(fileName, bytes, units, up, list, seq); // list dropped after the part: re-measure with its settings and match it
+    }
   }
 
   function onDrop(e: DragEvent<HTMLDivElement>) {

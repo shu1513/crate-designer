@@ -21,6 +21,7 @@ export interface PartsListSettings {
 export function parsePartsListSettings(text: string): PartsListSettings {
   let data: { model_units?: unknown; coordinate_system?: unknown };
   try { data = JSON.parse(text) as typeof data; } catch { return {}; }
+  if (typeof data !== "object" || data === null) return {};
   const out: PartsListSettings = {};
   const units = typeof data.model_units === "string" ? data.model_units.toLowerCase() : "";
   if (/^(m|meter|meters|metre|metres)$/.test(units)) out.modelUnits = "m";
@@ -43,7 +44,7 @@ export function parsePartsList(text: string): PartsListEntry[] {
   if (!Array.isArray(parts) || parts.length === 0) throw new Error('The parts list has no "parts" array.');
   const out: PartsListEntry[] = [];
   for (const raw of parts) {
-    const p = raw as { id?: unknown; name?: unknown; model?: unknown; mass_kg?: unknown; suggested_quantities?: unknown };
+    const p = (typeof raw === "object" && raw !== null ? raw : {}) as { id?: unknown; name?: unknown; model?: unknown; mass_kg?: unknown; suggested_quantities?: unknown };
     if (typeof p.model !== "string" || typeof p.mass_kg !== "number" || !(p.mass_kg > 0)) {
       throw new Error(`Part ${typeof p.id === "string" ? p.id : "?"} needs a model file name and a positive mass_kg.`);
     }

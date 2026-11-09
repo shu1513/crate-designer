@@ -21,4 +21,4 @@ export interface PartSummary {
 export type WorkerResponse =
   | { id: number; type: "partLoaded"; summary: PartSummary }
   | { id: number; type: "designed"; design: Design }
-  | { id: number; type: "error"; code: string; message: string };
+  | { id: number; type: "error"; code: string; message: string; used?: { modelUnits: ModelUnits; guessed: boolean; upAxis: UpAxis; upGuessed: boolean } };

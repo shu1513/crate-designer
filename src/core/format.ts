@@ -1,0 +1,33 @@
+/**
+ * Display formatting (SPEC R20). All internal numbers are millimetres and kilograms;
+ * step text carries tokens like {{mm:1574}} or {{kg:27}} that are rendered here.
+ */
+export type DisplayUnit = "mm" | "in";
+
+export function formatLength(mm: number, unit: DisplayUnit): string {
+  if (unit === "mm") return `${Math.round(mm)} mm`;
+  const inches = mm / 25.4;
+  const whole = Math.floor(inches);
+  let sixteenths = Math.round((inches - whole) * 16);
+  let w = whole;
+  if (sixteenths === 16) { w += 1; sixteenths = 0; }
+  if (sixteenths === 0) return `${w} in`;
+  let num = sixteenths, den = 16;
+  while (num % 2 === 0) { num /= 2; den /= 2; }
+  return w === 0 ? `${num}/${den} in` : `${w} ${num}/${den} in`;
+}
+
+export function formatWeight(kg: number, unit: DisplayUnit): string {
+  return unit === "mm" ? `${Math.round(kg * 2) / 2} kg` : `${Math.round(kg * 2.20462 * 2) / 2} lb`;
+}
+
+/** Replaces {{mm:N}} and {{kg:N}} tokens with formatted values. */
+export function renderText(text: string, unit: DisplayUnit): string {
+  return text.replace(/\{\{(mm|kg):([-\d.]+)\}\}/g, (_m, kind: string, n: string) =>
+    kind === "mm" ? formatLength(Number(n), unit) : formatWeight(Number(n), unit));
+}
+
+/** Word count for the R18 rule: a {{token}} counts as one word. */
+export function wordCount(text: string): number {
+  return text.replace(/\{\{[^}]*\}\}/g, "X").trim().split(/\s+/).filter(Boolean).length;
+}

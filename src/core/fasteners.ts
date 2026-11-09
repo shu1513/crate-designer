@@ -3,8 +3,14 @@ import type { Restraint } from "./restraint.ts";
 import type { Tier } from "./tier.ts";
 
 /** Screws only (SPEC R16, D20). Counts follow 5.5 and are rounded up to the next 10. */
+export type FastenerRole = "wall" | "frame" | "corner" | "board" | "skid";
+
 export interface Fastener {
   type: "wood screw";
+  role: FastenerRole;
+  /** Gauge, e.g. "#8". */
+  gauge: string;
+  /** Human label, e.g. "#8 × 25 mm". */
   size: string;
   lengthMm: number;
   count: number;
@@ -30,6 +36,13 @@ export function wallScrewLength(t: number, c: number): number {
 function parseLength(label: string): number {
   const m = /×\s*(\d+)\s*mm/.exec(label);
   return m ? Number(m[1]) : 0;
+}
+function parseGauge(label: string): string {
+  return /^(#\d+)/.exec(label)?.[1] ?? "#8";
+}
+/** Step-text form of a screw with its length as a unit token (SPEC R20). */
+export function screwToken(f: Fastener): string {
+  return `${f.gauge} × {{mm:${f.lengthMm}}}`;
 }
 
 function perRun(length: number, pitch: number, minimum = 2): number {
@@ -59,29 +72,40 @@ export function countFasteners(crate: Crate, restraint: Restraint, tier: Tier): 
   wallUses.push("skins and lid panel to cleats");
   wall += 2 * perRun(L, SKIN_PITCH) + 2 * perRun(W, SKIN_PITCH); wallUses.push("skins to base rails");
   wall += perRun(2 * (L + W), EDGE_PITCH); wallUses.push("FP to base rails");
-  wall += perRun(2 * (crate.outer.L + crate.outer.W), SKIN_PITCH); wallUses.push("lid closure");
   const wallLen = wallScrewLength(t, c);
 
-  // Frame screws (lumber to lumber): wall corners through side cleat + skin into end cleat, base
-  // frame corners, joist ends, skids to rails.
+  // Frame screws (lumber to lumber, or through the lid into the top wall cleats): wall corners through
+  // side cleat + skin into end cleat, base frame corners, joist ends, lid closure.
   let frame = 0;
   const frameUses: string[] = [];
-  frame += 4 * perRun(wallHeight, SKIN_PITCH); frameUses.push("wall corners");
   frame += 8; frameUses.push("base frame corners");
   const joists = crate.pieces.find((p) => p.id === "BF-J")?.count ?? 0;
   if (joists) { frame += 4 * joists; frameUses.push("joist ends"); }
-  if (crate.skids) { frame += crate.skids * (2 + joists) * 2; frameUses.push("skids to rails"); }
+  frame += perRun(2 * (crate.outer.L + crate.outer.W), SKIN_PITCH); frameUses.push("lid closure into the top wall cleats");
   const frameLen = parseLength(tier.frameScrew);
 
-  // Board screws (through the floor or lid panel into a board's edge): length fits the shortest board.
+  // Board screws (through the floor or lid panel into a board's edge): about 45 mm of bite is plenty,
+  // and never more than the shortest board can take.
   const boards = [...restraint.bottomBoards, ...restraint.topBoards, ...restraint.endStops];
   const shortest = Math.min(...boards.map((b) => b.height));
   const boardScrews = 3 * boards.length;
-  const boardLen = fitStock(t + shortest);
+  const boardLen = fitStock(t + Math.min(shortest, 45));
+  // Corner screws: through the side cleat (c) and side skin (t) into the end cleat's d-wide face.
+  const cornerScrews = 4 * perRun(wallHeight, SKIN_PITCH);
+  const cornerLen = fitStock(c + t + d);
 
-  return [
-    { type: "wood screw", size: tier.wallScrew, lengthMm: wallLen, count: wall, countAbout: about(wall), usedIn: wallUses, joinsMm: t + c },
-    { type: "wood screw", size: tier.frameScrew, lengthMm: frameLen, count: frame, countAbout: about(frame), usedIn: frameUses, joinsMm: 2 * c + t },
-    { type: "wood screw", size: `#8 × ${boardLen} mm`, lengthMm: boardLen, count: boardScrews, countAbout: about(boardScrews), usedIn: ["cradle boards and end stops"], joinsMm: t + shortest },
+  const list: Fastener[] = [
+    { type: "wood screw", role: "wall", gauge: parseGauge(tier.wallScrew), size: tier.wallScrew, lengthMm: wallLen, count: wall, countAbout: about(wall), usedIn: wallUses, joinsMm: t + c },
+    { type: "wood screw", role: "frame", gauge: parseGauge(tier.frameScrew), size: tier.frameScrew, lengthMm: frameLen, count: frame, countAbout: about(frame), usedIn: frameUses, joinsMm: Math.min(2 * c, t + d) },
+    { type: "wood screw", role: "corner", gauge: "#10", size: `#10 × ${cornerLen} mm`, lengthMm: cornerLen, count: cornerScrews, countAbout: about(cornerScrews), usedIn: ["wall corners, side cleat through side skin into end cleat"], joinsMm: c + t + d },
+    { type: "wood screw", role: "board", gauge: "#8", size: `#8 × ${boardLen} mm`, lengthMm: boardLen, count: boardScrews, countAbout: about(boardScrews), usedIn: ["cradle boards and end stops"], joinsMm: t + shortest },
   ];
+  if (crate.skids) {
+    // Driven down through the rails into the skids before the floor panel goes on.
+    const outerSkids = 2, middle = crate.skids - 2;
+    const skidScrews = outerSkids * perRun(L, EDGE_PITCH) + middle * (2 + joists) * 2;
+    const skidLen = fitStock(d + tier.skid.d);
+    list.push({ type: "wood screw", role: "skid", gauge: "#10", size: `#10 × ${skidLen} mm`, lengthMm: skidLen, count: skidScrews, countAbout: about(skidScrews), usedIn: ["rails into skids"], joinsMm: d + tier.skid.d });
+  }
+  return list;
 }

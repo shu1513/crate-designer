@@ -96,10 +96,11 @@ export function buildCrate(layout: Layout, restraint: Restraint, tier: Tier, nee
     pushOrMerge(pieces, "SS", "Side skin", plywood, L_out, hWall, t, box(-w, ySkin, zWall, L_out, t, hWall), sheetNote(L_out, hWall));
     pushOrMerge(pieces, "SC-V", "Side cleat, vertical edge", lumber, hWall, d, c, box(-w, yCleat, zWall, d, c, hWall));
     pushOrMerge(pieces, "SC-V", "Side cleat, vertical edge", lumber, hWall, d, c, box(L_in + w - d, yCleat, zWall, d, c, hWall));
-    pushOrMerge(pieces, "SC-H", "Side cleat, horizontal", lumber, L_out - 2 * d, d, c, box(-w + d, yCleat, zWall, L_out - 2 * d, c, d));
+    // Bottom horizontal cleat sits just above the base-frame zone, leaving bare skin over the rail for the base screws.
+    pushOrMerge(pieces, "SC-H", "Side cleat, horizontal", lumber, L_out - 2 * d, d, c, box(-w + d, yCleat, -t, L_out - 2 * d, c, d));
     pushOrMerge(pieces, "SC-H", "Side cleat, horizontal", lumber, L_out - 2 * d, d, c, box(-w + d, yCleat, H_in - d, L_out - 2 * d, c, d));
     const mids = Math.ceil(L_out / 600) - 1;
-    for (const x of spread(-w + d, L_in + w - d, mids, d)) pushOrMerge(pieces, "SC-M", "Side cleat, intermediate vertical", lumber, hWall - 2 * d, d, c, box(x, yCleat, zWall + d, d, c, hWall - 2 * d));
+    for (const x of spread(-w + d, L_in + w - d, mids, d)) pushOrMerge(pieces, "SC-M", "Side cleat, intermediate vertical", lumber, H_in + t - 2 * d, d, c, box(x, yCleat, -t + d, d, c, H_in + t - 2 * d));
   }
   // End panels fit between the side skins: skin at x −t..0 / L_in..L_in+t, cleats outside.
   for (const end of [0, 1] as const) {
@@ -108,20 +109,29 @@ export function buildCrate(layout: Layout, restraint: Restraint, tier: Tier, nee
     pushOrMerge(pieces, "ES", "End skin", plywood, W_in, hWall, t, box(xSkin, 0, zWall, t, W_in, hWall), sheetNote(W_in, hWall));
     pushOrMerge(pieces, "EC-V", "End cleat, vertical edge", lumber, hWall, d, c, box(xCleat, 0, zWall, c, d, hWall));
     pushOrMerge(pieces, "EC-V", "End cleat, vertical edge", lumber, hWall, d, c, box(xCleat, W_in - d, zWall, c, d, hWall));
-    pushOrMerge(pieces, "EC-H", "End cleat, horizontal", lumber, W_in - 2 * d, d, c, box(xCleat, d, zWall, c, W_in - 2 * d, d));
+    pushOrMerge(pieces, "EC-H", "End cleat, horizontal", lumber, W_in - 2 * d, d, c, box(xCleat, d, -t, c, W_in - 2 * d, d));
     pushOrMerge(pieces, "EC-H", "End cleat, horizontal", lumber, W_in - 2 * d, d, c, box(xCleat, d, H_in - d, c, W_in - 2 * d, d));
     const mids = Math.ceil(W_in / 600) - 1;
-    for (const y of spread(d, W_in - d, mids, d)) pushOrMerge(pieces, "EC-M", "End cleat, intermediate vertical", lumber, hWall - 2 * d, d, c, box(xCleat, y, zWall + d, c, d, hWall - 2 * d));
+    for (const y of spread(d, W_in - d, mids, d)) pushOrMerge(pieces, "EC-M", "End cleat, intermediate vertical", lumber, H_in + t - 2 * d, d, c, box(xCleat, y, -t + d, c, d, H_in + t - 2 * d));
   }
 
   // Lid: panel on top of the walls, flat cleats on top of the panel.
   const zLid = H_in;
   add("LP", "Lid panel", plywood, L_out, W_out, t, [box(-w, -w, zLid, L_out, W_out, t)], [], sheetNote(L_out, W_out));
+  // Lid cleats are inset by the wall thickness so the band over the walls stays clear for the closure screws.
   const zLC = zLid + t;
-  add("LC-L", "Lid cleat, long", lumber, L_out, d, c, [box(-w, -w, zLC, L_out, d, c), box(-w, W_in + w - d, zLC, L_out, d, c)]);
-  add("LC-S", "Lid cleat, short", lumber, W_out - 2 * d, d, c, [box(-w, -w + d, zLC, d, W_out - 2 * d, c), box(L_in + w - d, -w + d, zLC, d, W_out - 2 * d, c)]);
+  add("LC-L", "Lid cleat, long", lumber, L_in, d, c, [box(0, 0, zLC, L_in, d, c), box(0, W_in - d, zLC, L_in, d, c)]);
+  add("LC-S", "Lid cleat, short", lumber, W_in - 2 * d, d, c, [box(0, d, zLC, d, W_in - 2 * d, c), box(L_in - d, d, zLC, d, W_in - 2 * d, c)]);
   const lidMids = Math.ceil(L_out / 1200) - 1;
-  if (lidMids > 0) add("LC-M", "Lid cleat, middle", lumber, W_out - 2 * d, d, c, spread(-w + d, L_in + w - d, lidMids, d).map((x) => box(x, -w + d, zLC, d, W_out - 2 * d, c)));
+  if (lidMids > 0) {
+    // Keep each middle cleat clear of the top cradle boards below, where their screws come through.
+    const topRanges = restraint.topBoards.map((b) => [b.x, b.x + b.thickness] as const);
+    const clear = (x: number): number => {
+      const hit = topRanges.find(([a, b]) => x < b + 5 && x + d > a - 5);
+      return hit ? hit[1] + 10 : x;
+    };
+    add("LC-M", "Lid cleat, middle", lumber, W_in - 2 * d, d, c, spread(d, L_in - d, lidMids, d).map((x) => box(clear(x), d, zLC, d, W_in - 2 * d, c)));
+  }
 
   // Cradles and stops from the restraint design.
   for (const b of restraint.bottomBoards) addBoard(pieces, b, boardStock, box(b.x, 0, 0, b.thickness, b.length, b.height), b.pockets.map((p) => box(b.x, p.leftOffset, b.height - p.depth, b.thickness, p.width, p.depth)));

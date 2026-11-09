@@ -68,11 +68,6 @@ export function DesignInputs({ disabled, busy, onDesign, onChange, unit, suggest
     setQuantityText(e.target.value);
     onChange();
   }
-  function pickQuantity(q: number) {
-    touched.current.quantity = true;
-    setQuantityText(String(q));
-    onChange();
-  }
   function onWeightChange(e: ChangeEvent<HTMLInputElement>) {
     touched.current.weight = true;
     const v = Number(e.target.value);
@@ -86,13 +81,6 @@ export function DesignInputs({ disabled, busy, onDesign, onChange, unit, suggest
       <label className="field">
         Quantity in this crate
         <input type="number" min={1} step={1} value={quantityText} onChange={onQuantityChange} />
-        {suggested && suggested.quantities.length > 0 && (
-          <span className="chips">
-            {suggested.quantities.map((q) => (
-              <button key={q} type="button" className={Number(quantityText) === q ? "chip active" : "chip"} onClick={() => pickQuantity(q)} aria-pressed={Number(quantityText) === q}>{q}</button>
-            ))}
-          </span>
-        )}
         {quantityText !== "" && !quantityOk && <span className="error">{MESSAGES.E3}</span>}
       </label>
       <label className="field">

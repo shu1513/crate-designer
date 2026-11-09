@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { Design } from "../core/design.ts";
-import { boardSvg, stepSvg } from "../core/drawings.ts";
+import { boardSvg, panelSvg, stepSvg } from "../core/drawings.ts";
 import type { Box } from "../core/crate.ts";
 import { useUnits } from "./units.tsx";
 import type { ProblemMark } from "./api.ts";
@@ -157,7 +157,7 @@ export function Steps({ design, problems = [], onReportProblem }: { design: Desi
                 {problems.filter((p) => p.stepId === s.id).map((p) => <div key={p.recordedAt} className="warning">Problem reported: {p.note || "(no note)"}</div>)}
                 {onReportProblem && <button className="link no-print" onClick={() => onReportProblem(s.id)}>Report a problem with this step</button>}
               </div>
-              <div className="step-figure" dangerouslySetInnerHTML={{ __html: stepSvg(s, labelFor) }} />
+              <div className="step-figure" dangerouslySetInnerHTML={{ __html: s.panel ? panelSvg(s.panel.skin, s.panel.cleats, s.panel.plane, u.unit, s.panel.title) : stepSvg(s, labelFor) }} />
             </div>
           </li>
         );

@@ -71,13 +71,12 @@ describe("R25–R28: records", () => {
     expect((res.body as { id: string }).id).toBe("CR-20261109-003");
   });
 
-  it("an import whose second entry violates a constraint inside the transaction rolls the first one back", () => {
+  it("an import file that repeats an id adds it once and skips the repeat; History shows one row", () => {
     const store = new RecordStore(":memory:");
     const entry = (id: string) => ({ id, createdAt: "2026-01-01T00:00:00.000Z", glbName: "a.glb", glbBase64: base64, designJson: JSON.stringify(stored), problems: [] });
-    // Both entries validate, but the second duplicates the first id, so the second INSERT throws after BEGIN.
     const res = api(store, "POST", "/api/import", { format: "crate-designer-records", version: 1, designs: [entry("CR-20260101-001"), entry("CR-20260101-001")] });
-    expect(res.status).toBe(400);
-    expect((api(store, "GET", "/api/designs").body as unknown[]).length).toBe(0);
+    expect(res.body).toEqual({ added: 1, skipped: 1 });
+    expect((api(store, "GET", "/api/designs").body as unknown[]).length).toBe(1);
   });
 
   it("T-R26b: filters by part name and by date range", () => {

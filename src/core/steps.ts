@@ -104,10 +104,20 @@ export function buildSteps(ctx: Ctx): Step[] {
   add({ text: "Mark one end of FP and one end of LP with the letter L.", pieceIds: ["FP", "LP"], tool: "pencil", highlight: [...boxesOf(fp), ...boxesOf(lp)], inPlace: [], note: `Note: every "from the L end" below is measured from that mark. The other two edges of a panel are its side edges. The lid goes on with its L over the floor's L.${layout.rows > 1 ? " Board IDs read row.board: BC-2.1 is the first bottom board of the second row from the L end." : ""}` });
 
   begin(2);
+  // Boards with the same height and pocket table are cut the same way: one set of steps for the group.
+  const groups = new Map<string, Piece[]>();
   for (const b of [...bottom, ...top]) {
-    add({ text: `Mark each pocket on ${b.id} from either end: its start, its width, and its depth from the open edge.`, pieceIds: [b.id], tool: "tape and pencil", highlight: b.placements, inPlace: [], note: "Note: the pockets are placed symmetrically, so either end of the board can be the table's left end." });
-    add({ text: `Saw the two sides of each pocket in ${b.id} down to the marked depth.`, pieceIds: [b.id], tool: "handsaw", highlight: b.placements, inPlace: [] });
-    add({ text: `Chisel out the waste between the cuts in ${b.id}, flat to the depth line.`, pieceIds: [b.id], tool: "chisel and mallet", highlight: b.placements, inPlace: [], note: "Note: a jigsaw also works; the pocket floor must be flat because the part sits on it." });
+    const key = `${b.width}|${b.cutouts.map((c) => `${(c.y - b.placements[0]!.y).toFixed(1)}:${c.dy.toFixed(1)}:${c.dz.toFixed(1)}:${c.z.toFixed(1)}`).join(",")}`;
+    groups.set(key, [...(groups.get(key) ?? []), b]);
+  }
+  for (const boards of groups.values()) {
+    const names = boards.length === 1 ? boards[0]!.id : boards.length === 2 ? `${boards[0]!.id} and ${boards[1]!.id}` : `${boards[0]!.id} to ${boards.at(-1)!.id}`;
+    const same = boards.length > 1 ? ` (${boards.length} identical boards)` : "";
+    const pieceIds = boards.map((b) => b.id);
+    const highlight = boards.flatMap((b) => b.placements);
+    add({ text: `Mark each pocket on ${names}: its start from either end, its width, and its depth.`, pieceIds, tool: "tape and pencil", highlight, inPlace: [], note: `Note: depth is measured from the open edge. The pockets are placed symmetrically, so either end of the board can be the table's left end.${same}` });
+    add({ text: `Saw the two sides of each pocket in ${names} down to the marked depth.`, pieceIds, tool: "handsaw", highlight, inPlace: [] });
+    add({ text: `Chisel out the waste between the cuts in ${names}, flat to the depth line.`, pieceIds, tool: "chisel and mallet", highlight, inPlace: [], note: "Note: a jigsaw also works; the pocket floor must be flat because the part sits on it." });
   }
 
   begin(3);

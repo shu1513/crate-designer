@@ -17,9 +17,18 @@ const CONTENT_TYPES: Record<string, string> = {
   ".ico": "image/x-icon",
 };
 
-async function serveStatic(pathname: string): Promise<{ status: number; type: string; body: Buffer }> {
+type StaticFile = { status: number; type: string; body: Buffer };
+
+async function serveStatic(pathname: string): Promise<StaticFile> {
+  // A malformed percent-encoding (e.g. "/%") must not crash the service.
+  let decoded: string;
+  try {
+    decoded = decodeURIComponent(pathname);
+  } catch {
+    return { status: 400, type: "text/plain; charset=utf-8", body: Buffer.from("Bad request") };
+  }
   // Resolve inside dist/ only; anything that escapes falls back to index.html.
-  const relative = normalize(decodeURIComponent(pathname)).replace(/^(\.\.[/\\])+/, "");
+  const relative = normalize(decoded).replace(/^(\.\.[/\\])+/, "");
   let filePath = join(DIST, relative);
   if (!filePath.startsWith(DIST)) filePath = join(DIST, "index.html");
   try {

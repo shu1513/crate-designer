@@ -5,7 +5,7 @@ import react from "@vitejs/plugin-react";
 // proxies /api to the Node service; in production the service serves dist/.
 export default defineConfig({
   plugins: [react()],
-  server: { proxy: { "/api": "http://localhost:8787" } },
+  server: { proxy: { "/api": `http://127.0.0.1:${process.env.PORT ?? 8787}` } },
   worker: { format: "es" },
   build: { outDir: "dist", sourcemap: true },
   test: { environment: "node", include: ["tests/**/*.test.ts"] },

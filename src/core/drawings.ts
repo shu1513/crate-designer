@@ -65,7 +65,7 @@ export function stepSvg(step: Step, labelFor: (b: Box) => string | undefined): s
     ...step.highlight.map((b) => ({ b, fill: HI, edge: HI_EDGE })),
   ];
   const all = items.map((i) => i.b);
-  if (all.length === 0) return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 120"><text x="10" y="60" font-size="14">${escape(step.text)}</text></svg>`;
+  if (all.length === 0) return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 120" data-step="${escape(step.id)}"><text x="10" y="60" font-size="14">${escape(step.text)}</text></svg>`;
   const bb = bounds(all);
   const pad = 40;
   const vw = bb.maxX - bb.minX + 2 * pad, vh = bb.maxY - bb.minY + 2 * pad + 30;
@@ -77,7 +77,7 @@ export function stepSvg(step: Step, labelFor: (b: Box) => string | undefined): s
   }).join("");
   const figureLabels = (step.labels ?? []).map((l, i) => `<text x="${(bb.minX).toFixed(1)}" y="${(bb.maxY + pad / 2 + i * 16).toFixed(1)}" font-size="${Math.max(12, vw / 60).toFixed(0)}" fill="#374151" font-family="sans-serif">${escape(l)}</text>`).join("");
   const flip = step.flip ? turnArrow(bb.maxX - 40, bb.minY - 10, Math.max(14, vw / 40)) : "";
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${(bb.minX - pad).toFixed(1)} ${(bb.minY - pad).toFixed(1)} ${vw.toFixed(1)} ${vh.toFixed(1)}" data-step="${step.id}">${drawBoxes(items)}${labels}${figureLabels}${flip}</svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${(bb.minX - pad).toFixed(1)} ${(bb.minY - pad).toFixed(1)} ${vw.toFixed(1)} ${vh.toFixed(1)}" data-step="${escape(step.id)}">${drawBoxes(items)}${labels}${figureLabels}${flip}</svg>`;
 }
 
 function turnArrow(x: number, y: number, size: number): string {
@@ -91,13 +91,14 @@ export function boardSvg(piece: Piece, unit: DisplayUnit): string {
   const L = b.dy, H = b.dz;
   const scale = 400 / L;
   const pad = 30;
-  const rect = (x: number, y: number, w: number, h: number, fill: string) => `<rect x="${(pad + x * scale).toFixed(1)}" y="${(pad + y * scale).toFixed(1)}" width="${(w * scale).toFixed(1)}" height="${(h * scale).toFixed(1)}" fill="${fill}" stroke="#374151" stroke-width="1"/>`;
+  // Every number is coerced through Number() so a tampered record cannot smuggle text into attributes.
+  const rect = (x: number, y: number, w: number, h: number, fill: string) => `<rect x="${(pad + Number(x) * scale).toFixed(1)}" y="${(pad + Number(y) * scale).toFixed(1)}" width="${(Number(w) * scale).toFixed(1)}" height="${(Number(h) * scale).toFixed(1)}" fill="${fill}" stroke="#374151" stroke-width="1"/>`;
   const pockets = piece.cutouts.map((c) => ({ left: c.y - b.y, depth: c.dz, width: c.dy, fromTop: c.z + c.dz >= b.z + b.dz - 1e-6 }));
   const svgPockets = pockets.map((p) => rect(p.left, p.fromTop ? 0 : H - p.depth, p.width, p.depth, "#ffffff")).join("");
   const rows = pockets.map((p, i) => `<tr><td>${i + 1}</td><td>${formatLength(p.left, unit)}</td><td>${formatLength(p.width, unit)}</td><td>${formatLength(p.depth, unit)}</td></tr>`).join("");
   const caption = `<p class="board-caption">${escape(piece.id)}: ${formatLength(L, unit)} long × ${formatLength(H, unit)} tall × ${formatLength(b.dx, unit)} thick. The left end is the crate's near side (Y = 0). Pockets open ${pockets[0]?.fromTop === false ? "downward, from the bottom edge" : "upward, from the top edge"}.</p>`;
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${(400 + 2 * pad).toFixed(0)} ${(H * scale + 2 * pad).toFixed(0)}" data-board="${piece.id}">${rect(0, 0, L, H, "#fde68a")}${svgPockets}</svg>`;
-  const table = `<table class="pocket-table" data-board="${piece.id}"><thead><tr><th>Pocket</th><th>From left end</th><th>Width</th><th>Depth</th></tr></thead><tbody>${rows}</tbody></table>`;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${(400 + 2 * pad).toFixed(0)} ${(H * scale + 2 * pad).toFixed(0)}" data-board="${escape(piece.id)}">${rect(0, 0, L, H, "#fde68a")}${svgPockets}</svg>`;
+  const table = `<table class="pocket-table" data-board="${escape(piece.id)}"><thead><tr><th>Pocket</th><th>From left end</th><th>Width</th><th>Depth</th></tr></thead><tbody>${rows}</tbody></table>`;
   return svg + caption + table;
 }
 

@@ -99,6 +99,7 @@ export function PartInput({ onLoaded, onChanging }: Props) {
     }
     const glb = all.find((f) => f.name.toLowerCase().endsWith(".glb"));
     if (glb) await acceptFile(glb, units, up, list);
+    else if (json && fileName && bytes) await load(fileName, bytes, units, up, list); // list dropped after the part: re-measure with its settings and match it
   }
 
   function onDrop(e: DragEvent<HTMLDivElement>) {

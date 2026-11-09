@@ -1,6 +1,6 @@
 import { createServer } from "node:http";
 import { readFile, stat } from "node:fs/promises";
-import { extname, join, normalize } from "node:path";
+import { extname, isAbsolute, join, normalize, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { handleApi } from "./api.ts";
 
@@ -28,9 +28,10 @@ async function serveStatic(pathname: string): Promise<StaticFile> {
     return { status: 400, type: "text/plain; charset=utf-8", body: Buffer.from("Bad request") };
   }
   // Resolve inside dist/ only; anything that escapes falls back to index.html.
-  const relative = normalize(decoded).replace(/^(\.\.[/\\])+/, "");
-  let filePath = join(DIST, relative);
-  if (!filePath.startsWith(DIST)) filePath = join(DIST, "index.html");
+  const insideDist = normalize(decoded).replace(/^(\.\.[/\\])+/, "");
+  let filePath = join(DIST, insideDist);
+  const escape = relative(DIST, filePath);
+  if (escape.startsWith("..") || isAbsolute(escape)) filePath = join(DIST, "index.html");
   try {
     const info = await stat(filePath);
     if (info.isDirectory()) filePath = join(filePath, "index.html");
@@ -50,16 +51,23 @@ async function serveStatic(pathname: string): Promise<StaticFile> {
 }
 
 const server = createServer(async (req, res) => {
-  const url = new URL(req.url ?? "/", `http://localhost:${PORT}`);
-  if (url.pathname.startsWith("/api/")) {
-    const { status, body } = handleApi(req.method ?? "GET", url.pathname);
-    res.writeHead(status, { "content-type": "application/json; charset=utf-8" });
-    res.end(JSON.stringify(body));
-    return;
+  try {
+    const url = new URL(req.url ?? "/", `http://localhost:${PORT}`);
+    if (url.pathname.startsWith("/api/")) {
+      const { status, body } = handleApi(req.method ?? "GET", url.pathname);
+      res.writeHead(status, { "content-type": "application/json; charset=utf-8" });
+      res.end(JSON.stringify(body));
+      return;
+    }
+    const file = await serveStatic(url.pathname);
+    res.writeHead(file.status, { "content-type": file.type });
+    res.end(file.body);
+  } catch (err) {
+    // Never let one bad request take the service down.
+    console.error(err);
+    res.writeHead(500, { "content-type": "text/plain; charset=utf-8" });
+    res.end("Internal error");
   }
-  const file = await serveStatic(url.pathname);
-  res.writeHead(file.status, { "content-type": file.type });
-  res.end(file.body);
 });
 
 server.listen(PORT, "127.0.0.1", () => {

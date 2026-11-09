@@ -12,6 +12,10 @@ export function callWorker(request: WorkerRequest): Promise<WorkerResponse> {
       reject(new Error(event.message));
       worker.terminate();
     };
+    worker.onmessageerror = () => {
+      reject(new Error("Worker response could not be read"));
+      worker.terminate();
+    };
     worker.postMessage(request);
   });
 }

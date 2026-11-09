@@ -49,7 +49,7 @@ User: the box builder. Works at a packing station with a computer, a browser, an
                                    │ a. Orient part (Z up, long side on X)  │
                                    │ b. Lay out N parts in a single-layer   │
                                    │    grid (smallest footprint)           │
-                                   │ c. Slice part at stations → hull       │
+                                   │ c. Slice part at stations → rectangular│
                                    │    pockets for bottom + top cradles    │
                                    │ d. Add end stops                       │
                                    │ e. Pick tier from total weight         │
@@ -65,7 +65,7 @@ User: the box builder. Works at a packing station with a computer, a browser, an
                                 fasteners, steps        (no partial design)
                                            │
   6. Press "Print"  ───────────►  Paper package: summary → cut list →
-                                  screws → pocket templates → steps
+                                  screws → cradle board drawings → steps
                                            │
   7. Build crate from printout.  Last step: any gap > 6 mm → add a wood shim.
 ```
@@ -119,7 +119,7 @@ Structure
 Instructions and output
 - R18. The build steps are numbered, in the order in 5.6, each with one line drawing (SVG) and plain text of at most 3 sentences. Every step names the piece IDs it uses and where each piece goes (measured from a named reference edge).
 - R19. "Print" produces a paper package in the page order of 5.6 with no cut-off content on A4 or US Letter.
-- R20. The mm/in toggle switches every displayed and printed number, including weights (kg to lb) and templates, with no re-upload. Internal values never change; only display rounding does.
+- R20. The mm/in toggle switches every displayed and printed number, including weights (kg to lb) and pocket tables, with no re-upload. Internal values never change; only display rounding does.
 
 Errors
 - R21. For each error case in section 6 (E1–E6, E8, E10) the app shows the exact message listed there and shows no design. E7 and E9 are warnings: the design stays and prints.
@@ -298,7 +298,7 @@ Each case shows one of these messages and no design (R21).
 - E10 Any required piece would have a zero or negative dimension after all rules are applied: "This part is too small for the crate rules. Smallest piece would be <piece ID> at <dimension>."
 - E8 File has more than 500,000 triangles: "This model is too detailed for the app (over 500,000 triangles). Export a simplified version."
 - E7 Model dimensions suspicious (largest extent > 20 m or < 10 mm): warning, not an error. "This part measures X. If that is wrong, change the model units." The design still proceeds.
-- Open or hollow parts (like PART-003's open top): the convex hull covers the opening; the cradle rests on the rim. Acceptable by design, noted in step 10.
+- Open or hollow parts (like PART-003's open top): the rectangular pocket spans the opening; the cradle rests on the rim and walls. Acceptable by design, noted in step 10.
 - Multiple disconnected bodies in the GLB (all three samples): merged into one triangle list and treated as one rigid part. No algorithm requires a watertight solid; slicing and hulls work on raw triangles.
 - Browser without WebGL: 3D view shows "3D preview unavailable in this browser"; all other outputs still work.
 - Large quantity (e.g. 200): the app designs it. If L_out or W_out exceeds 2440 mm (a standard plywood sheet), the cut list notes "panel exceeds one sheet, join two sheets over a frame member" on that piece.
@@ -343,7 +343,7 @@ Each decision: options, cost, choice, reason. "Interviewer" means given directly
 - D24 (confirmed by interviewer) One crate holds copies of one part only. No mixed parts.
 - D25 (confirmed by interviewer) The clearance constants in 5.3 and tier table in 5.5 are accepted as the starting point.
 - D28 (user, 2026-11-09) Records hold minimal data only: the part's GLB and the design and instructions the app produced, plus any problem marks. No separate copies of inputs, hashes, or settings. Storage: user chose option 2, a small local SQLite service, because records must still be found a year later and must survive browser resets and computer swaps. Options considered: (1) browser IndexedDB with JSON export/import, no server, half a day, records stay on one machine; (2) small local Node service with a SQLite file, one to two days, durable and shareable across stations, two processes to run in the demo; (3) full server database, over-engineering. Choice: (2). The service is a small Node (TypeScript) program using Node's built-in SQLite module, serving both the records API and the built app pages, so the demo is still one command.
-- D23 (confirmed by user 2026-11-09) Technology: TypeScript + Vite + React + Three.js, no CSG library, hand-written slicing and hull code, boards drawn by extruding a 2D outline, SVG drawings from the same data. Researched independently by me and by Codex (gpt-6-astra); both arrived at the same stack.
+- D23 (confirmed by user 2026-11-09) Technology: TypeScript + Vite + React + Three.js, no CSG library, hand-written slab slicing, boards drawn by extruding a 2D outline, SVG drawings from the same data. Researched independently by me and by Codex (gpt-6-astra); both arrived at the same stack.
   - Language and framework. Options: (1) TypeScript + Vite + React, Vitest for tests; (2) TypeScript + Vite with plain DOM, fewer dependencies but hand-written state sync between units, tabs, and print; (3) Rust/WebAssembly geometry core, another build system and debugging path for no measured need (samples have about 400 to 1,000 triangles). Choice: (1). Reason: fastest path with AI coding tools, one language, geometry stays in plain testable functions.
   - 3D. Options: Three.js or Babylon.js for GLB loading and preview. Choice: Three.js with its GLTFLoader. No CSG library: every board is a 2D outline (rectangle with a notch) extruded to its thickness, which Three.js does natively, and the same outline is the paper template. Slab clipping and extent measurement are plain TypeScript (under about 40 lines); no hull or polygon-offset code is needed after D31. three-mesh-bvh is added only if slicing a 500,000-triangle file measures over 1 second.
   - Computation runs in one Web Worker as a single pure function `designCrate(input) → Design`, so the screen never freezes and the function is unit-tested without a browser.

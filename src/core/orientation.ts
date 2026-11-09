@@ -22,22 +22,29 @@ const aboutZPlus90: Rotate = (x, y, z) => [-y, x, z]; // Y axis → −X, X axis
 
 export function orientPart(part: PartMesh): PartFrame {
   const rules: OrientationRule[] = [];
-  const steps: Rotate[] = [];
   let { L, W, H } = part.dims;
-
   // Rule 2: tall thin part lies down so its long axis runs along X.
   if (H > 1.5 * Math.max(L, W)) {
-    steps.push(aboutYPlus90);
     [L, H] = [H, L];
     rules.push("laid-down");
   }
   // Rule 3: longer footprint side along X.
-  if (W > L) {
-    steps.push(aboutZPlus90);
-    [L, W] = [W, L];
-    rules.push("turned-90");
-  }
+  if (W > L) rules.push("turned-90");
   if (rules.length === 0) rules.push("native");
+  return applyOrientation(part, rules);
+}
+
+/**
+ * Applies a recorded rule sequence (SPEC R26: a saved design is reopened with the rules it was
+ * made with, even if the rules change later).
+ */
+export function applyOrientation(part: PartMesh, rules: OrientationRule[]): PartFrame {
+  const steps: Rotate[] = [];
+  let { L, W, H } = part.dims;
+  for (const rule of rules) {
+    if (rule === "laid-down") { steps.push(aboutYPlus90); [L, H] = [H, L]; }
+    if (rule === "turned-90") { steps.push(aboutZPlus90); [L, W] = [W, L]; }
+  }
 
   const src = part.positions;
   const out = new Float32Array(src.length);

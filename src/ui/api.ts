@@ -2,7 +2,7 @@ import type { Design } from "../core/design.ts";
 
 /** Browser side of the records API (SPEC 5.1, R25–R28). All calls go to the local service only. */
 
-export interface HistoryEntry { id: string; createdAt: string; glbName: string; quantity: number; outer: { L: number; W: number; H: number }; problems: number }
+export interface HistoryEntry { id: string; createdAt: string; glbName: string; quantity: number; outer: { L: number; W: number; H: number }; problems: { stepId: string; note: string }[] }
 export interface ProblemMark { designId: string; stepId: string; note: string; recordedAt: string }
 export interface StoredRecord { id: string; createdAt: string; glbName: string; glbBase64: string; design: Design; problems: ProblemMark[] }
 

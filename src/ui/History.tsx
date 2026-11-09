@@ -1,4 +1,4 @@
-import { useEffect, useState, type ChangeEvent } from "react";
+import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { recordsApi, type HistoryEntry } from "./api.ts";
 import { useUnits } from "./units.tsx";
 
@@ -15,16 +15,19 @@ export function History({ onOpen }: Props) {
   const [rows, setRows] = useState<HistoryEntry[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [tick, setTick] = useState(0);
+  const seq = useRef(0);
 
-  async function refresh() {
-    try {
-      setRows(await recordsApi.list({ part, from, to }));
-      setError(null);
-    } catch (err) {
-      setError(`History is unavailable: ${(err as Error).message}`);
-    }
-  }
-  useEffect(() => { void refresh(); }, [part, from, to]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Date filters are typed as local calendar days; the service compares UTC timestamps.
+  const localDayStart = (d: string) => (d ? new Date(`${d}T00:00:00`).toISOString() : undefined);
+  const localDayEnd = (d: string) => (d ? new Date(`${d}T23:59:59.999`).toISOString() : undefined);
+
+  useEffect(() => {
+    const mine = ++seq.current;
+    recordsApi.list({ part, from: localDayStart(from), to: localDayEnd(to) })
+      .then((list) => { if (mine === seq.current) { setRows(list); setError(null); } })
+      .catch((err: Error) => { if (mine === seq.current) setError(`History is unavailable: ${err.message}`); });
+  }, [part, from, to, tick]);
 
   async function exportAll() {
     try {
@@ -46,7 +49,7 @@ export function History({ onOpen }: Props) {
     try {
       const result = await recordsApi.importAll(JSON.parse(await file.text()));
       setMessage(`Imported ${result.added} design${result.added === 1 ? "" : "s"}, skipped ${result.skipped} already present.`);
-      await refresh();
+      setTick((t) => t + 1); // refresh with the filters as they are now
     } catch (err) {
       setError(`Import failed: ${(err as Error).message}`);
     }
@@ -71,7 +74,8 @@ export function History({ onOpen }: Props) {
             {rows.map((r) => (
               <tr key={r.id}>
                 <td><strong>{r.id}</strong></td><td>{new Date(r.createdAt).toLocaleString()}</td><td>{r.glbName}</td><td>{r.quantity}</td>
-                <td>{u.size(r.outer.L, r.outer.W, r.outer.H)}</td><td>{r.problems || ""}</td>
+                <td>{u.size(r.outer.L, r.outer.W, r.outer.H)}</td>
+                <td>{r.problems.length === 0 ? "" : <ul className="plain">{r.problems.map((p, i) => <li key={i}>Step {p.stepId}{p.note ? `: ${p.note}` : ""}</li>)}</ul>}</td>
                 <td><button onClick={() => onOpen(r.id)}>Open</button></td>
               </tr>
             ))}

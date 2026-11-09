@@ -64,6 +64,9 @@ describe("R4: model units and up axis", () => {
   it("T-R4: millimeter units on a meter-scale file give sub-millimeter dimensions and an E2 that names the likely unit", () => {
     const glb = buildGlb([{ size: [0.36, 0.22, 0.258] }]);
     expect(() => loadPart(glb, { modelUnits: "mm", upAxis: "Z" })).toThrowError(/Read as millimeters, the part would be 0\.36 × 0\.22 × 0\.26 mm, which is flat or empty in one direction\. The file is probably in meters/);
+    // When the guess itself is what failed, the message still says where to change the unit.
+    const thin = buildGlb([{ size: [40, 0.5, 10] }]);
+    expect(() => loadPart(thin, { modelUnits: "mm", upAxis: "Z" })).toThrowError(/Only if the part looks wrong/);
     const parsed = parseGlb(glb);
     expect(parsed.triangleCount).toBe(12);
   });

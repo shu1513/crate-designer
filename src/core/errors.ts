@@ -28,7 +28,9 @@ const UNIT_WORD = { m: "meters", mm: "millimeters", in: "inches" } as const;
 export function messageE2(chosen: "m" | "mm" | "in", dimsMm: [number, number, number], suggested: "m" | "mm" | "in"): string {
   const f = (v: number) => (v < 10 ? v.toFixed(2) : Math.round(v).toString());
   const size = `${f(dimsMm[0])} × ${f(dimsMm[1])} × ${f(dimsMm[2])} mm`;
-  const hint = suggested === chosen ? "" : ` The file is probably in ${UNIT_WORD[suggested]}: change "The file's numbers are in" and try again.`;
+  const hint = suggested === chosen
+    ? ` Open "Only if the part looks wrong" and try another unit for "The file's numbers are in".`
+    : ` The file is probably in ${UNIT_WORD[suggested]}: open "Only if the part looks wrong" and change "The file's numbers are in".`;
   return `Read as ${UNIT_WORD[chosen]}, the part would be ${size}, which is flat or empty in one direction.${hint}`;
 }
 

@@ -22,6 +22,8 @@ describe("R29: parts list intake", () => {
     expect(() => parsePartsList("not json")).toThrowError(/not a readable parts list/);
     expect(() => parsePartsList("{}")).toThrowError(/no "parts" array/);
     expect(() => parsePartsList(JSON.stringify({ parts: [{ id: "X", model: "x.glb" }] }))).toThrowError(/Part X needs/);
+    expect(() => parsePartsList(JSON.stringify({ parts: [null] }))).toThrowError(/needs a model file name/);
+    expect(parsePartsListSettings("null")).toEqual({});
   });
 
   it("T-R29: reads model units and up axis from the list when present", () => {

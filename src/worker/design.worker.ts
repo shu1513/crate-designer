@@ -13,6 +13,7 @@ function reply(response: WorkerResponse): void {
 
 self.onmessage = (event: MessageEvent<WorkerRequest>) => {
   const request = event.data;
+  let used: { modelUnits: ModelUnits; guessed: boolean; upAxis: UpAxis; upGuessed: boolean } | undefined;
   try {
     switch (request.type) {
       case "loadPart": {
@@ -23,6 +24,7 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
         const modelUnits: ModelUnits = requested === "auto" ? guessModelUnits(rawMaxExtent(raw!.positions)) : requested;
         const upAxis: UpAxis = request.upAxis === "auto" ? guessUpAxis(raw!.generator) : request.upAxis;
         currentSettings = { modelUnits, upAxis };
+        used = { modelUnits, guessed, upAxis, upGuessed };
         currentPart = loadPart(request.bytes, currentSettings);
         const { triangleCount, dims, warnings } = currentPart;
         reply({ id: request.id, type: "partLoaded", summary: { triangleCount, dims, warnings, modelUnits, guessed, upAxis, upGuessed } });
@@ -41,7 +43,7 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
   } catch (err) {
     if (request.type === "loadPart") currentPart = null;
     if (err instanceof DesignError) {
-      reply({ id: request.id, type: "error", code: err.code, message: err.message });
+      reply({ id: request.id, type: "error", code: err.code, message: err.message, used });
     } else {
       // Anything unexpected while reading a file is reported as an unreadable model (SPEC E1).
       reply({ id: request.id, type: "error", code: "E1", message: MESSAGES.E1 });

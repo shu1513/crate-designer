@@ -1,6 +1,8 @@
 import type { WorkerRequest, WorkerResponse } from "./protocol.ts";
 
 type Pending = { resolve: (r: WorkerResponse) => void; reject: (e: Error) => void };
+/** Omit that distributes over a union, so each request variant keeps its own fields. */
+type RequestWithoutId = WorkerRequest extends infer R ? (R extends { id: number } ? Omit<R, "id"> : never) : never;
 
 /** One long-lived design worker; requests are matched to responses by id. */
 class DesignWorkerClient {
@@ -29,7 +31,7 @@ class DesignWorkerClient {
     return worker;
   }
 
-  send(request: Omit<WorkerRequest, "id">, transfer: Transferable[] = []): Promise<WorkerResponse> {
+  send(request: RequestWithoutId, transfer: Transferable[] = []): Promise<WorkerResponse> {
     const id = this.nextId++;
     const full = { ...request, id } as WorkerRequest;
     return new Promise((resolve, reject) => {

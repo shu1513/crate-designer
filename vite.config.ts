@@ -7,6 +7,6 @@ export default defineConfig({
   plugins: [react()],
   server: { proxy: { "/api": `http://127.0.0.1:${process.env.PORT ?? 8787}` } },
   worker: { format: "es" },
-  build: { outDir: "dist", sourcemap: true },
+  build: { outDir: "dist", sourcemap: true, chunkSizeWarningLimit: 1200 }, // Three.js is one large chunk by design
   test: { environment: "node", include: ["tests/**/*.test.ts"] },
 });

@@ -32,7 +32,8 @@ export function chooseLayout(size: PartSize, quantity: number, tier: Tier): Layo
     const maxCols = rows === 1 ? quantity : Math.floor((quantity - 1) / (rows - 1));
     for (let cols = Math.ceil(quantity / rows); cols <= maxCols; cols++) {
       const L_in = rows * size.L + (rows - 1) * s_p + 2 * e_stop;
-      const W_in = cols * (size.W + 2 * g_c) + (cols + 1) * web;
+      // Never narrower than two vertical cleats plus a hand's width, so narrow parts still get a crate (E10 otherwise).
+      const W_in = Math.max(cols * (size.W + 2 * g_c) + (cols + 1) * web, 2 * tier.d + 20);
       const cand = { rows, cols, L_in, W_in };
       if (!best || better(cand, best)) best = cand;
     }
@@ -43,6 +44,8 @@ export function chooseLayout(size: PartSize, quantity: number, tier: Tier): Layo
   // top and bottom wall cleats would overlap (SPEC 5.4, Codex review item 10).
   const H_in = Math.max(c_floor + size.H + c_top, 2 * tier.d + 20);
 
+  const natural = best.cols * (size.W + 2 * g_c) + (best.cols + 1) * web;
+  const extra = (best.W_in - natural) / 2; // centres the parts when the cavity was widened to the minimum
   const partOrigins: Layout["partOrigins"] = [];
   for (let row = 0; row < best.rows; row++) {
     for (let col = 0; col < best.cols; col++) {
@@ -51,7 +54,7 @@ export function chooseLayout(size: PartSize, quantity: number, tier: Tier): Layo
         row,
         col,
         x: e_stop + row * (size.L + s_p),
-        y: web + g_c + col * (size.W + 2 * g_c + web),
+        y: extra + web + g_c + col * (size.W + 2 * g_c + web),
         z: c_floor,
       });
     }

@@ -153,8 +153,12 @@ describe("R18, R11: drawings", () => {
     expect(d.steps.find((s) => s.group === 11 && !s.screw)!.text).toContain("L over the floor's L");
     const uniform = designFromPart(bracketLike(), inputs(1, 21.5));
     expect(uniform.steps.find((s) => s.text.startsWith("Lower each part"))!.note).toMatch(/either way round/);
-    // Pockets are cut in three actions: mark, saw the sides, chisel the waste.
+    // Pockets are cut in three actions: mark, saw the sides, chisel the waste; the shaft's six boards are all different.
     expect(d.steps.filter((s) => s.group === 2).length).toBe(3 * 6);
+    // Identical boards share one set of steps: 8 box-brackets have 4 identical bottom boards and 4 identical top boards.
+    const many = designFromPart(bracketLike(), inputs(8, 21.5));
+    expect(many.steps.filter((s) => s.group === 2).length).toBe(3 * 2);
+    expect(many.steps.find((s) => s.group === 2)!.text).toMatch(/BC-1\.1 to BC-2\.2/);
     // Shimming lifts the part out first and every conditional stays one action.
     const lift = d.steps.find((s) => s.text.startsWith("If a gap is over"))!;
     expect(lift.text).toMatch(/lift that part out/);

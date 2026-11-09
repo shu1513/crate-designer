@@ -153,6 +153,9 @@ export function nominalStations(L: number): number[] {
  */
 export function chooseStations(frame: PartFrame, tier: Tier): Station[] {
   const half = tier.c / 2 + SLAB_MARGIN;
+  if (frame.L < 2 * (tier.c + 2 * SLAB_MARGIN)) {
+    throw new DesignError("E10", `This part is too small for the crate rules: at ${Math.round(frame.L)} mm it is shorter than two cradle boards.`);
+  }
   const { maxStationSpacing } = CLEARANCE;
   // Short parts cannot keep 100 mm between two stations; scale the floor down with the part.
   const minStationSpacing = Math.min(CLEARANCE.minStationSpacing, 0.5 * frame.L);

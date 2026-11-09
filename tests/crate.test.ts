@@ -84,14 +84,18 @@ describe("R15, R17: crate pieces and sizes", () => {
     }
   });
 
-  it("E10: a part too small for the rules is refused with the piece named", () => {
-    // 100 × 22 × 100: cavity width 128 = 2 × 64, so the end cleat EC-H would be 0 mm long.
-    const thin = mmPart(buildGlb([{ size: [100, 22, 100], center: [50, 0, 50] }]));
+  it("E10: a part shorter than two cradle boards is refused in plain words; a narrow part is not refused", () => {
+    const short = mmPart(buildGlb([{ size: [40, 30, 30], center: [20, 0, 15] }])); // 40 mm long after orientation: under two 19 mm boards plus margins
     let caught: unknown;
-    try { designFromPart(thin, inputs(1, 1)); } catch (e) { caught = e; }
+    try { designFromPart(short, inputs(1, 1)); } catch (e) { caught = e; }
     expect(caught).toBeInstanceOf(DesignError);
     expect((caught as DesignError).code).toBe("E10");
-    expect((caught as DesignError).message).toBe("This part is too small for the crate rules. Smallest piece would be EC-H at 0 mm.");
+    expect((caught as DesignError).message).toMatch(/shorter than two cradle boards/);
+    // 100 × 22 × 100 used to fail on a 0 mm end cleat; the cavity minimum now makes it buildable.
+    const thin = mmPart(buildGlb([{ size: [100, 22, 100], center: [50, 0, 50] }]));
+    const d = designFromPart(thin, inputs(1, 1));
+    expect(d.crate.pieces.find((p) => p.id === "EC-H")!.length).toBe(20);
+    expect(overlappingPieces(d.crate.pieces)).toEqual([]);
   });
 
   it("wood weight follows the density rule and pockets are subtracted", () => {

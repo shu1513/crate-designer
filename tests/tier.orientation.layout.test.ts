@@ -212,6 +212,14 @@ describe("R6, R7: layout", () => {
     }
   });
 
+  it("a narrow part gets a cavity at least two cleats wide, with the part centred", () => {
+    const tier = selectTier(1);
+    const layout = chooseLayout({ L: 100, W: 20, H: 50 }, 1, tier);
+    expect(layout.W_in).toBe(2 * tier.d + 20);
+    const o = layout.partOrigins[0]!;
+    expect(o.y).toBeCloseTo((layout.W_in - 20) / 2, 6);
+  });
+
   it("E10 guard input: a thin part still gets a cavity tall enough for the cleats", () => {
     const tier = selectTier(5);
     const layout = chooseLayout({ L: 300, W: 200, H: 6 }, 1, tier);

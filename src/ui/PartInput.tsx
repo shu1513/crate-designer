@@ -177,8 +177,8 @@ export function PartInput({ onLoaded, onChanging }: Props) {
         <label className="field">
           Which way is up in the file
           <select value={upAxis} onChange={onUp}>
-            <option value="Z">Hadrian files (Z is up)</option>
-            <option value="Y">Most other programs (Y is up)</option>
+            <option value="Z">Z is up</option>
+            <option value="Y">Y is up</option>
           </select>
           <span className="hint">
             {upSource === "list" ? "From parts.json." : upSource === "guess" ? "Guessed from the program that wrote the file." : upSource === "user" ? "Set by you." : "Guessed unless parts.json says."}

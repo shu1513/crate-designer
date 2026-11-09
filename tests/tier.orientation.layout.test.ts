@@ -3,13 +3,28 @@ import { DesignError } from "../src/core/errors.ts";
 import { loadPart } from "../src/core/part.ts";
 import { validateInputs } from "../src/core/inputs.ts";
 import { orientPart } from "../src/core/orientation.ts";
-import { chooseLayout } from "../src/core/layout.ts";
+import { chooseLayout, planLayout } from "../src/core/layout.ts";
 import { promoteIfWide, selectTier } from "../src/core/tier.ts";
 import { CLEARANCE } from "../src/core/constants.ts";
 import { buildGlb } from "./helpers/glb.ts";
 import { loadSample, samplesPresent } from "./helpers/samples.ts";
 
 const box = (L: number, W: number, H: number) => loadPart(buildGlb([{ size: [L, W, H] }]), { modelUnits: "mm", upAxis: "Z" });
+
+function bounds(p: Float32Array): { min: number[]; max: number[] } {
+  const min = [Infinity, Infinity, Infinity];
+  const max = [-Infinity, -Infinity, -Infinity];
+  for (let i = 0; i < p.length; i += 3) for (let k = 0; k < 3; k++) {
+    min[k] = Math.min(min[k]!, p[i + k]!);
+    max[k] = Math.max(max[k]!, p[i + k]!);
+  }
+  return { min, max };
+}
+function verticesWhere(p: Float32Array, pred: (x: number, y: number, z: number) => boolean): [number, number, number][] {
+  const out: [number, number, number][] = [];
+  for (let i = 0; i < p.length; i += 3) if (pred(p[i]!, p[i + 1]!, p[i + 2]!)) out.push([p[i]!, p[i + 1]!, p[i + 2]!]);
+  return out;
+}
 
 describe("R3: input validation", () => {
   it("T-R3: E3 for bad quantity, E4 for bad weight, values pass through otherwise", () => {
@@ -34,6 +49,45 @@ describe("R5: orientation", () => {
     }
     expect(minX).toBeCloseTo(0, 6);
     expect(maxX).toBeCloseTo(500, 3);
+  });
+
+  it("T-R5: laying down is a proper rotation, not a mirror (asymmetric fixture)", () => {
+    // Tall post with a small lug sticking out on +X near the top.
+    const glb = buildGlb([
+      { size: [100, 100, 500], center: [0, 0, 250] },
+      { size: [50, 50, 50], center: [75, 0, 475] },
+    ]);
+    const frame = orientPart(loadPart(glb, { modelUnits: "mm", upAxis: "Z" }));
+    expect(frame.rules).toEqual(["laid-down"]);
+    expect([frame.L, frame.W, frame.H]).toEqual([500, 100, 150]);
+    const b = bounds(frame.positions);
+    expect(b.min.map((v) => Math.round(v))).toEqual([0, 0, 0]);
+    expect(b.max.map((v) => Math.round(v))).toEqual([500, 100, 150]);
+    // Rotation about +Y by 90° sends the lug (was +X, top) to the far end along X and to the BOTTOM (z 0..50).
+    // A mirror would put it at the top (z 100..150).
+    // The lug is 50 wide in Y (|y − 50| ≤ 25 after re-basing); the post's end face is 100 wide, so filter on both.
+    const lug = verticesWhere(frame.positions, (x, y) => x > 440 && y > 24.9 && y < 75.1);
+    expect(lug.length).toBeGreaterThan(0);
+    expect(Math.max(...lug.map((v) => v[2]))).toBeLessThanOrEqual(50.001);
+  });
+
+  it("T-R5: turning 90° is a proper rotation, not a mirror (asymmetric fixture)", () => {
+    // Flat plate long along Y with a lug at the +Y end on the +X side.
+    const glb = buildGlb([
+      { size: [100, 300, 50], center: [0, 0, 25] },
+      { size: [20, 20, 50], center: [60, 140, 25] },
+    ]);
+    const frame = orientPart(loadPart(glb, { modelUnits: "mm", upAxis: "Z" }));
+    expect(frame.rules).toEqual(["turned-90"]);
+    expect([frame.L, frame.W, frame.H]).toEqual([300, 120, 50]);
+    const b = bounds(frame.positions);
+    expect(b.min.map((v) => Math.round(v))).toEqual([0, 0, 0]);
+    expect(b.max.map((v) => Math.round(v))).toEqual([300, 120, 50]);
+    // Rotation about +Z by 90° sends +Y to −X: the lug lands at the START of X (0..20) and sticks out at +Y (100..120).
+    // A mirror (swap X and Y) would put it at x 280..300.
+    const lug = verticesWhere(frame.positions, (_x, y) => y > 100.001);
+    expect(lug.length).toBeGreaterThan(0);
+    expect(Math.max(...lug.map((v) => v[0]))).toBeLessThanOrEqual(20.001);
   });
 
   it("T-R5: a wide footprint turns 90° so the longer side is along X; a flat tall part only turns", () => {
@@ -107,29 +161,34 @@ describe("R6, R7: layout", () => {
     expect(new Set(brackets.partOrigins.map((p) => p.z)).size).toBe(1);
   });
 
-  it("T-R6: a quantity that does not fill the grid leaves no empty row (5 parts → 2 × 3, not 3 × 2 with an empty row)", () => {
+  it("T-R6: 5 square parts go 3 rows × 2 cols (occupancy 2, 2, 1): longest side 394 beats 2 × 3 at 518", () => {
     const five = chooseLayout({ L: 100, W: 100, H: 50 }, 5, selectTier(10));
-    expect(five.rows * five.cols).toBeGreaterThanOrEqual(5);
-    expect((five.rows - 1) * five.cols).toBeLessThan(5);
+    expect([five.rows, five.cols]).toEqual([3, 2]);
+    expect([five.L_in, five.W_in]).toEqual([394, 362]);
     expect(five.partOrigins).toHaveLength(5);
+    expect(five.partOrigins.filter((p) => p.row === 2)).toHaveLength(1);
   });
 
-  it("T-R13: PART-003 × 8 needs a cavity wider than 1200 and promotes T2 to T3", () => {
-    const base = selectTier(8 * 11.8);
-    const layout = chooseLayout({ L: 445, W: 435, H: 254 }, 8, base);
-    expect(layout.W_in).toBeGreaterThan(1200);
-    expect(promoteIfWide(base, layout.W_in).name).toBe("T3");
+  it("T-R13: PART-003 × 8 needs a cavity wider than 1200, promotes T2 to T3, and re-lays out with T3 stock", () => {
+    const plan = planLayout({ L: 445, W: 435, H: 254 }, 8, 8 * 11.8);
+    expect(plan.promoted).toBe(true);
+    expect(plan.tier.name).toBe("T3");
+    expect(plan.layout.W_in).toBeGreaterThan(1200);
+    expect(plan.layout.e_stop).toBe(3 + 38); // T3 stop board, not T2's 22
+    expect(plan.layout.L_in).toBe(3 * 445 + 2 * (38 + 6) + 2 * 41); // 1505
+    const noPromo = planLayout({ L: 1530, W: 172, H: 172 }, 1, 27);
+    expect(noPromo.promoted).toBe(false);
+    expect(noPromo.tier.name).toBe("T1");
   });
 
-  it("T-R7: parts keep ≥ 50 mm from each other and the side skins, and g_c + c from the end skins", () => {
+  it("T-R7: side-by-side gaps ≥ 50, end-to-end gaps = s_p, end-skin distance = g_c + c, one layer", () => {
     const cases: [{ L: number; W: number; H: number }, number, number][] = [
       [{ L: 360, W: 220, H: 258 }, 1, 21.5], [{ L: 360, W: 220, H: 258 }, 4, 21.5], [{ L: 360, W: 220, H: 258 }, 8, 21.5],
       [{ L: 1530, W: 172, H: 172 }, 1, 27], [{ L: 1530, W: 172, H: 172 }, 4, 27], [{ L: 1530, W: 172, H: 172 }, 8, 27],
       [{ L: 445, W: 435, H: 254 }, 1, 11.8], [{ L: 445, W: 435, H: 254 }, 4, 11.8], [{ L: 445, W: 435, H: 254 }, 8, 11.8],
     ];
     for (const [size, n, w] of cases) {
-      const tier = selectTier(n * w);
-      const layout = chooseLayout(size, n, tier);
+      const { tier, layout } = planLayout(size, n, n * w);
       for (const p of layout.partOrigins) {
         expect(p.y).toBeGreaterThanOrEqual(web);
         expect(layout.W_in - (p.y + size.W)).toBeGreaterThanOrEqual(web);
@@ -139,9 +198,15 @@ describe("R6, R7: layout", () => {
         expect(layout.H_in - (p.z + size.H)).toBeGreaterThanOrEqual(c_top);
         for (const q of layout.partOrigins) {
           if (q === p) continue;
-          const dx = Math.max(0, Math.max(p.x, q.x) - Math.min(p.x + size.L, q.x + size.L));
-          const dy = Math.max(0, Math.max(p.y, q.y) - Math.min(p.y + size.W, q.y + size.W));
-          expect(Math.max(dx, dy)).toBeGreaterThanOrEqual(Math.min(web, layout.s_p));
+          if (q.row === p.row) {
+            // side by side: at least one web of cradle wood between pockets
+            const dy = Math.abs(p.y - q.y) - size.W;
+            expect(dy).toBeGreaterThanOrEqual(web);
+          } else if (q.col === p.col) {
+            // end to end: exactly one shared stop board plus a gap each side
+            const dx = Math.abs(p.x - q.x) - size.L;
+            expect(dx).toBeCloseTo(layout.s_p * Math.abs(p.row - q.row) + size.L * (Math.abs(p.row - q.row) - 1), 6);
+          }
         }
       }
     }

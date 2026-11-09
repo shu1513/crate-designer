@@ -39,6 +39,6 @@ export function selectTier(netKg: number): Tier {
 /** Moves up one tier when the cradle span is long (SPEC R13). T4 stays T4. */
 export function promoteIfWide(tier: Tier, innerWidth: number): Tier {
   if (innerWidth <= PROMOTE_WIDTH) return tier;
-  const index = TIERS.indexOf(tier);
+  const index = TIERS.findIndex((t) => t.name === tier.name);
   return TIERS[Math.min(index + 1, TIERS.length - 1)] ?? tier;
 }

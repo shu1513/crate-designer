@@ -1,5 +1,5 @@
 import { CLEARANCE } from "./constants.ts";
-import type { Tier } from "./tier.ts";
+import { promoteIfWide, selectTier, type Tier } from "./tier.ts";
 
 /** Single-layer grid of identical parts: rows along X, columns along Y (SPEC 5.2, R6). */
 export interface Layout {
@@ -28,9 +28,9 @@ export function chooseLayout(size: PartSize, quantity: number, tier: Tier): Layo
 
   let best: Candidate | null = null;
   for (let rows = 1; rows <= quantity; rows++) {
-    for (let cols = Math.ceil(quantity / rows); cols <= quantity; cols++) {
-      if (rows * cols < quantity) continue;
-      if (rows * cols - quantity >= cols) continue; // would leave a whole row empty
+    // cols must hold everything (ceil) and must not leave a whole row empty: (rows − 1) × cols < N.
+    const maxCols = rows === 1 ? quantity : Math.floor((quantity - 1) / (rows - 1));
+    for (let cols = Math.ceil(quantity / rows); cols <= maxCols; cols++) {
       const L_in = rows * size.L + (rows - 1) * s_p + 2 * e_stop;
       const W_in = cols * (size.W + 2 * g_c) + (cols + 1) * web;
       const cand = { rows, cols, L_in, W_in };
@@ -57,6 +57,21 @@ export function chooseLayout(size: PartSize, quantity: number, tier: Tier): Layo
     }
   }
   return { rows: best.rows, cols: best.cols, L_in: best.L_in, W_in: best.W_in, H_in, s_p, e_stop, partOrigins };
+}
+
+/**
+ * Tier and layout together (SPEC R13): pick the tier from net load, lay out,
+ * and if the cavity is wider than the promotion width, move up one tier and
+ * lay out again with the thicker stock. Promotion cannot loop: W_in does not
+ * depend on the tier.
+ */
+export function planLayout(size: PartSize, quantity: number, netKg: number): { tier: Tier; layout: Layout; promoted: boolean } {
+  const base = selectTier(netKg);
+  let layout = chooseLayout(size, quantity, base);
+  const tier = promoteIfWide(base, layout.W_in);
+  const promoted = tier.name !== base.name;
+  if (promoted) layout = chooseLayout(size, quantity, tier);
+  return { tier, layout, promoted };
 }
 
 /** Smallest longest side, then smallest area, then fewer rows. */

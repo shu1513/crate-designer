@@ -134,23 +134,26 @@ export function PartInput({ onLoaded, onChanging }: Props) {
           <p className="muted">Drop the matching .glb file to load it; its weight and quantities fill in.</p>
         </details>
       )}
-      <label className="field">
-        File is measured in
-        <select value={modelUnits} onChange={onUnits}>
-          <option value="m">meters (Hadrian sample files)</option>
-          <option value="mm">millimeters</option>
-          <option value="in">inches</option>
-        </select>
-        <span className="hint">A .glb file does not say what unit it uses. If the size shown below looks wrong, change this.</span>
-      </label>
-      <label className="field">
-        Which way is up in the file
-        <select value={upAxis} onChange={onUp}>
-          <option value="Z">Z is up (Hadrian sample files)</option>
-          <option value="Y">Y is up (most other CAD exports)</option>
-        </select>
-        <span className="hint">If the part appears lying on its side in the 3D view, switch this.</span>
-      </label>
+      <details className="file-settings">
+        <summary>Only if the part looks wrong</summary>
+        <label className="field">
+          The file's numbers are in
+          <select value={modelUnits} onChange={onUnits}>
+            <option value="m">meters (Hadrian files)</option>
+            <option value="mm">millimeters</option>
+            <option value="in">inches</option>
+          </select>
+          <span className="hint">A .glb file does not say what unit it uses. If the size shown is far too big or too small, change this.</span>
+        </label>
+        <label className="field">
+          Which way is up in the file
+          <select value={upAxis} onChange={onUp}>
+            <option value="Z">Z is up (Hadrian files)</option>
+            <option value="Y">Y is up (many other programs)</option>
+          </select>
+          <span className="hint">3D files store a part as X, Y, Z numbers, and programs disagree on which letter means up. If the part is lying on its side or standing on end in the 3D view, switch this.</span>
+        </label>
+      </details>
       {busy && <p className="status">Measuring…</p>}
       {error && <p className="error">{error}</p>}
       {summary && (

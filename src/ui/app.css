@@ -47,6 +47,11 @@ table.positions td { padding: 1px 8px 1px 0; }
 .boards .board { margin: 8px 0 16px; }
 .boards svg { width: 100%; max-width: 520px; height: auto; }
 .print-only { display: none; }
+.filters { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+.history-actions { display: flex; gap: 8px; align-items: center; margin-top: 12px; }
+.history-actions .secondary { width: auto; margin: 0; }
+button.link { background: none; border: none; color: #1d4ed8; cursor: pointer; padding: 0; font-size: 13px; text-decoration: underline; }
+.problems { margin-top: 12px; font-size: 13px; }
 @media print {
   .no-print { display: none !important; }
   .print-only { display: block; }

@@ -30,11 +30,22 @@ describe("R25–R28: records", () => {
     expect(row.problems).toEqual([]);
   });
 
-  it("rejects bad save bodies and oversized files", () => {
+  it("rejects bad save bodies, designs without the required shape, and oversized files", () => {
     const store = new RecordStore(":memory:");
     expect(api(store, "POST", "/api/designs", { glbName: "x" }).status).toBe(400);
-    expect(api(store, "POST", "/api/designs", { glbName: "x", glbBase64: "", design: {} }).status).toBe(400);
+    expect(api(store, "POST", "/api/designs", { glbName: "x", glbBase64: base64, design: {} }).status).toBe(400);
+    expect(api(store, "POST", "/api/designs", { glbName: "x", glbBase64: "", design: stored }).status).toBe(400);
     expect(api(store, "GET", "/api/designs/CR-nope").status).toBe(404);
+  });
+
+  it("import validates every entry and rolls back on a damaged file; a damaged row never breaks History", () => {
+    const store = new RecordStore(":memory:");
+    const good = { id: "CR-20260101-001", createdAt: "2026-01-01T00:00:00.000Z", glbName: "a.glb", glbBase64: base64, designJson: JSON.stringify(stored), problems: [] };
+    const bad = { ...good, id: "CR-20260101-002", designJson: "{not json" };
+    expect(api(store, "POST", "/api/import", { format: "crate-designer-records", version: 1, designs: [good, bad] }).status).toBe(400);
+    expect((api(store, "GET", "/api/designs").body as unknown[]).length).toBe(0); // rolled back: the good one was not kept either
+    expect(api(store, "POST", "/api/import", { format: "crate-designer-records", version: 1, designs: [good] }).status).toBe(200);
+    expect((api(store, "GET", "/api/designs").body as unknown[]).length).toBe(1);
   });
 
   it("T-R26: history lists saved designs with id, date, part, quantity, outer size, and reopens one with its GLB", () => {

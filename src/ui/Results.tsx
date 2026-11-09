@@ -3,10 +3,18 @@ import type { Design } from "../core/design.ts";
 import { boardSvg, stepSvg } from "../core/drawings.ts";
 import type { Box } from "../core/crate.ts";
 import { useUnits } from "./units.tsx";
+import type { ProblemMark } from "./api.ts";
 
 type Tab = "summary" | "cutlist" | "fasteners" | "steps";
 
-export function Results({ design, recordId }: { design: Design; recordId: string | null }) {
+interface ResultsProps {
+  design: Design;
+  recordId: string | null;
+  problems?: ProblemMark[];
+  onReportProblem?: (stepId: string) => void;
+}
+
+export function Results({ design, recordId, problems = [], onReportProblem }: ResultsProps) {
   const [tab, setTab] = useState<Tab>("summary");
   return (
     <div className="results">
@@ -18,15 +26,15 @@ export function Results({ design, recordId }: { design: Design; recordId: string
         ))}
       </nav>
       <div className="tab-body no-print">
-        {tab === "summary" && <Summary design={design} recordId={recordId} />}
+        {tab === "summary" && <Summary design={design} recordId={recordId} problems={problems} />}
         {tab === "cutlist" && <CutList design={design} />}
         {tab === "fasteners" && <Fasteners design={design} />}
-        {tab === "steps" && <Steps design={design} />}
+        {tab === "steps" && <Steps design={design} problems={problems} onReportProblem={onReportProblem} />}
       </div>
       {/* Print package (SPEC R19): summary, cut list, fasteners, board drawings, steps. */}
       <div className="print-only print-package">
         <PrintHeader design={design} recordId={recordId} />
-        <Summary design={design} recordId={recordId} />
+        <Summary design={design} recordId={recordId} problems={problems} />
         <h2>Cut list</h2>
         <CutList design={design} />
         <h2>Fasteners</h2>
@@ -48,7 +56,7 @@ function PrintHeader({ design, recordId }: { design: Design; recordId: string | 
   );
 }
 
-export function Summary({ design, recordId }: { design: Design; recordId: string | null }) {
+export function Summary({ design, recordId, problems = [] }: { design: Design; recordId: string | null; problems?: ProblemMark[] }) {
   const u = useUnits();
   const { crate, layout, tier, inputs } = design;
   const orientation = design.frame.rules.map((r) => (r === "native" ? "as modelled" : r === "laid-down" ? "laid on its side" : "turned 90°")).join(", ");
@@ -68,6 +76,12 @@ export function Summary({ design, recordId }: { design: Design; recordId: string
         </tbody>
       </table>
       {design.warnings.map((w) => <p key={w} className="warning">{u.text(w)}</p>)}
+      {problems.length > 0 && (
+        <div className="problems">
+          <strong>Problems reported while building</strong>
+          <ul>{problems.map((p) => <li key={p.recordedAt + p.stepId}>Step {p.stepId}: {p.note || "(no note)"} <span className="muted">({new Date(p.recordedAt).toLocaleString()})</span></li>)}</ul>
+        </div>
+      )}
     </section>
   );
 }
@@ -114,7 +128,7 @@ export function Boards({ design }: { design: Design }) {
   );
 }
 
-export function Steps({ design }: { design: Design }) {
+export function Steps({ design, problems = [], onReportProblem }: { design: Design; problems?: ProblemMark[]; onReportProblem?: (stepId: string) => void }) {
   const u = useUnits();
   const labelFor = (b: Box) => design.crate.pieces.find((p) => p.placements.some((q) => q.x === b.x && q.y === b.y && q.z === b.z))?.id;
   let lastGroup = 0;
@@ -134,6 +148,8 @@ export function Steps({ design }: { design: Design }) {
                 )}
                 {s.note && <div className="note">{u.text(s.note)}</div>}
                 {(s.screw || s.tool) && <div className="muted">{[s.screw && `Screws: ${u.text(s.screw)}`, s.tool && `Tool: ${s.tool}`].filter(Boolean).join(" · ")}</div>}
+                {problems.filter((p) => p.stepId === s.id).map((p) => <div key={p.recordedAt} className="warning">Problem reported: {p.note || "(no note)"}</div>)}
+                {onReportProblem && <button className="link no-print" onClick={() => onReportProblem(s.id)}>Report a problem with this step</button>}
               </div>
               <div className="step-figure" dangerouslySetInnerHTML={{ __html: stepSvg(s, labelFor) }} />
             </div>

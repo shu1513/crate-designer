@@ -1,6 +1,7 @@
 import { DesignError, MESSAGES } from "../core/errors.ts";
 import { designFromPart } from "../core/design.ts";
-import { loadPart, type ModelUnits, type PartMesh, type UpAxis } from "../core/part.ts";
+import { guessModelUnits, loadPart, rawMaxExtent, type ModelUnits, type PartMesh, type UpAxis } from "../core/part.ts";
+import { guessUpAxis, parseGlb } from "../core/glb.ts";
 import type { WorkerRequest, WorkerResponse } from "./protocol.ts";
 
 let currentPart: PartMesh | null = null;
@@ -15,10 +16,16 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
   try {
     switch (request.type) {
       case "loadPart": {
-        currentSettings = { modelUnits: request.modelUnits, upAxis: request.upAxis };
+        const requested = request.modelUnits;
+        const guessed = requested === "auto";
+        const upGuessed = request.upAxis === "auto";
+        const raw = guessed || upGuessed ? parseGlb(request.bytes) : null;
+        const modelUnits: ModelUnits = requested === "auto" ? guessModelUnits(rawMaxExtent(raw!.positions)) : requested;
+        const upAxis: UpAxis = request.upAxis === "auto" ? guessUpAxis(raw!.generator) : request.upAxis;
+        currentSettings = { modelUnits, upAxis };
         currentPart = loadPart(request.bytes, currentSettings);
         const { triangleCount, dims, warnings } = currentPart;
-        reply({ id: request.id, type: "partLoaded", summary: { triangleCount, dims, warnings } });
+        reply({ id: request.id, type: "partLoaded", summary: { triangleCount, dims, warnings, modelUnits, guessed, upAxis, upGuessed } });
         break;
       }
       case "design": {

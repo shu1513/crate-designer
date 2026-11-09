@@ -1,4 +1,4 @@
-import { DesignError, MESSAGES, warningE7 } from "./errors.ts";
+import { DesignError, MESSAGES, messageE2, warningE7 } from "./errors.ts";
 import { parseGlb } from "./glb.ts";
 
 export type ModelUnits = "m" | "mm" | "in";
@@ -27,6 +27,29 @@ export interface PartMesh {
 
 export const MAX_TRIANGLES = 500_000;
 export const UNIT_TO_MM: Record<ModelUnits, number> = { m: 1000, mm: 1, in: 25.4 };
+
+/**
+ * Guesses the file's unit from its largest raw extent: machined parts are between about 30 mm and
+ * 20 m, so a raw extent of 1.5 reads as meters, 1500 as millimeters, 60 as inches.
+ */
+export function guessModelUnits(rawMaxExtent: number): ModelUnits {
+  const v = rawMaxExtent;
+  if (v >= 0.03 && v <= 20) return "m";
+  if (v >= 30 && v <= 20000) return "mm";
+  if (v > 20 && v < 30) return "in"; // 20..30 units: a 0.5..0.75 m part in inches is likelier than a 20 m part in meters
+  return v < 0.03 ? "m" : "mm";
+}
+
+/** Largest extent of the raw file coordinates (file units), for unit guessing and E2 hints. */
+export function rawMaxExtent(positions: Float32Array): number {
+  const min = [Infinity, Infinity, Infinity], max = [-Infinity, -Infinity, -Infinity];
+  for (let i = 0; i < positions.length; i += 3) for (let k = 0; k < 3; k++) {
+    const v = positions[i + k]!;
+    if (v < min[k]!) min[k] = v;
+    if (v > max[k]!) max[k] = v;
+  }
+  return Math.max(max[0]! - min[0]!, max[1]! - min[1]!, max[2]! - min[2]!);
+}
 
 export function loadPart(bytes: ArrayBuffer, options: PartOptions): PartMesh {
   const raw = parseGlb(bytes);
@@ -57,7 +80,9 @@ export function loadPart(bytes: ArrayBuffer, options: PartOptions): PartMesh {
     if (pz > max[2]) max[2] = pz;
   }
   const dims = { L: max[0] - min[0], W: max[1] - min[1], H: max[2] - min[2] };
-  if (dims.L < 1 || dims.W < 1 || dims.H < 1) throw new DesignError("E2", MESSAGES.E2);
+  if (dims.L < 1 || dims.W < 1 || dims.H < 1) {
+    throw new DesignError("E2", messageE2(options.modelUnits, [dims.L, dims.W, dims.H], guessModelUnits(rawMaxExtent(raw.positions))));
+  }
 
   const warnings: string[] = [];
   const largest = Math.max(dims.L, dims.W, dims.H);

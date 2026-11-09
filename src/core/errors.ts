@@ -13,7 +13,7 @@ export class DesignError extends Error {
 
 export const MESSAGES = {
   E1: "This file is not a readable 3D model (.glb). Try exporting it again.",
-  E2: "The model is flat or empty in one direction. Check the model units.",
+  E2: "The model is flat or empty in one direction. Check the model units.", // base text; see messageE2 for the full form
   E3: "Quantity must be a whole number, 1 or more.",
   E4: "Weight must be a number greater than 0.",
   E5: "Total weight is over 1800 kg. This needs an engineered crate design, which this app does not do.",
@@ -22,6 +22,16 @@ export const MESSAGES = {
 } as const;
 
 /** E7 text with {{mm:N}} tokens so the screen can show it in the chosen unit (R20). */
+const UNIT_WORD = { m: "meters", mm: "millimeters", in: "inches" } as const;
+
+/** E2 with what the part would measure under the chosen unit and which unit is probably right. */
+export function messageE2(chosen: "m" | "mm" | "in", dimsMm: [number, number, number], suggested: "m" | "mm" | "in"): string {
+  const f = (v: number) => (v < 10 ? v.toFixed(2) : Math.round(v).toString());
+  const size = `${f(dimsMm[0])} × ${f(dimsMm[1])} × ${f(dimsMm[2])} mm`;
+  const hint = suggested === chosen ? "" : ` The file is probably in ${UNIT_WORD[suggested]}: change "The file's numbers are in" and try again.`;
+  return `Read as ${UNIT_WORD[chosen]}, the part would be ${size}, which is flat or empty in one direction.${hint}`;
+}
+
 export function warningE7(L: number, W: number, H: number): string {
   const t = (v: number) => `{{mm:${Math.round(v)}}}`;
   return `This part measures ${t(L)} × ${t(W)} × ${t(H)}. If that is wrong, change the model units.`;

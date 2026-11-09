@@ -1,8 +1,8 @@
 import { existsSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { DesignError } from "../src/core/errors.ts";
-import { loadPart, MAX_TRIANGLES } from "../src/core/part.ts";
-import { parseGlb } from "../src/core/glb.ts";
+import { guessModelUnits, loadPart, MAX_TRIANGLES } from "../src/core/part.ts";
+import { guessUpAxis, parseGlb } from "../src/core/glb.ts";
 import { buildGlb, patchGlbJson } from "./helpers/glb.ts";
 
 const SAMPLES = "samples";
@@ -61,11 +61,26 @@ describe("R1: GLB loading and bounds", () => {
 });
 
 describe("R4: model units and up axis", () => {
-  it("T-R4: millimeter units on a meter-scale file give sub-millimeter dimensions and E2", () => {
+  it("T-R4: millimeter units on a meter-scale file give sub-millimeter dimensions and an E2 that names the likely unit", () => {
     const glb = buildGlb([{ size: [0.36, 0.22, 0.258] }]);
-    expect(() => loadPart(glb, { modelUnits: "mm", upAxis: "Z" })).toThrowError(/flat or empty/);
+    expect(() => loadPart(glb, { modelUnits: "mm", upAxis: "Z" })).toThrowError(/Read as millimeters, the part would be 0\.36 × 0\.22 × 0\.26 mm, which is flat or empty in one direction\. The file is probably in meters/);
     const parsed = parseGlb(glb);
     expect(parsed.triangleCount).toBe(12);
+  });
+
+  it("guesses the up axis from the writing program: trimesh files are Z up, everything else Y up (the glTF rule)", () => {
+    expect(guessUpAxis("https://github.com/mikedh/trimesh")).toBe("Z");
+    expect(guessUpAxis("Khronos glTF Blender I/O v4.2")).toBe("Y");
+    expect(guessUpAxis("")).toBe("Y");
+    expect(parseGlb(buildGlb([{ size: [1, 1, 1] }])).generator).toBe("crate-designer tests");
+  });
+
+  it("guesses the file's unit from its size: 1.53 → meters, 1530 → millimeters, 60 → inches", () => {
+    expect(guessModelUnits(1.53)).toBe("m");
+    expect(guessModelUnits(1530)).toBe("mm");
+    expect(guessModelUnits(0.36)).toBe("m");
+    expect(guessModelUnits(25)).toBe("in");
+    expect(guessModelUnits(445)).toBe("mm");
   });
 
   it("T-R4: inch units scale by 25.4", () => {

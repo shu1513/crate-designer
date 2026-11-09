@@ -12,6 +12,26 @@ export interface PartsListEntry {
   suggestedQuantities: number[];
 }
 
+export interface PartsListSettings {
+  modelUnits?: "m" | "mm" | "in";
+  upAxis?: "Z" | "Y";
+}
+
+/** Hadrian's parts.json also states the model units and the up axis; use them as defaults. */
+export function parsePartsListSettings(text: string): PartsListSettings {
+  let data: { model_units?: unknown; coordinate_system?: unknown };
+  try { data = JSON.parse(text) as typeof data; } catch { return {}; }
+  const out: PartsListSettings = {};
+  const units = typeof data.model_units === "string" ? data.model_units.toLowerCase() : "";
+  if (/^(m|meter|meters|metre|metres)$/.test(units)) out.modelUnits = "m";
+  else if (/^(mm|millimeter|millimeters|millimetre|millimetres)$/.test(units)) out.modelUnits = "mm";
+  else if (/^(in|inch|inches)$/.test(units)) out.modelUnits = "in";
+  const cs = typeof data.coordinate_system === "string" ? data.coordinate_system : "";
+  if (/\bz[- ]?up\b/i.test(cs)) out.upAxis = "Z";
+  else if (/\by[- ]?up\b/i.test(cs)) out.upAxis = "Y";
+  return out;
+}
+
 export function parsePartsList(text: string): PartsListEntry[] {
   let data: unknown;
   try {

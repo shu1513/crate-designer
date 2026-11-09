@@ -228,7 +228,7 @@ Tier table (R13), by net load N × weight. Nominal lumber names in brackets.
 | T4 | 500–1800 kg | 18 mm (3/4") | 38 × 89 (2x4) | 2 × 89 × 89 (4x4) | #10 × 50 mm | #10 × 75 mm |
 | — | > 1800 kg | refuse (E5) | | | | |
 
-Skid rule (from the Lockheed Martin Space crate standard P-52 §3.1.4): skids are required when gross weight is 91 kg (200 lb) or more, or when any outer dimension is 1524 mm (60 in) or more. ASTM D6256 §6.2: two skids when W_out ≤ 914 mm (36 in), three when wider. The skid decision uses gross weight and outer size computed without skids; once skids are added their weight and height are included and the decision is not revisited. Skids run along X, flush with the side walls. Plywood is never thinner than 10 mm (ASTM D6256 minimum 3/8 in).
+Skid rule (from the Lockheed Martin Space crate standard P-52 §3.1.4): skids are required when gross weight is 91 kg (200 lb) or more, or when any outer dimension is 1524 mm (60 in) or more. ASTM D6256 §6.2: two skids when W_out ≤ 914 mm (36 in), three when wider. The skid decision uses gross weight and outer size computed without skids; once skids are added their weight and height are included and the decision is not revisited. Skids run along X the full outer length, directly under the long rails (the base frame is inside the walls, so the walls hang beside the skids); a third skid runs under the middle of the joists. Plywood is never thinner than 10 mm (ASTM D6256 minimum 3/8 in).
 
 Piece formulas. Cavity L_in × W_in × H_in from 5.2 and 5.4.
 

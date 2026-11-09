@@ -145,8 +145,10 @@ export function buildCrate(layout: Layout, restraint: Restraint, tier: Tier, nee
     skids = W_out > THIRD_SKID_WIDTH ? 3 : 2;
     const sk = tier.skid;
     const zSK = zBF - sk.d;
-    const ys = [-w, W_in + w - sk.c];
-    if (skids === 3) ys.push(-w + (W_out - sk.c) / 2);
+    // Skids sit directly under the long rails (the base frame is inside the walls), so the skid screws
+    // driven down through a rail land in the middle of a skid. A middle skid sits under the joists' centre.
+    const ys = [0, W_in - sk.c];
+    if (skids === 3) ys.push((W_in - sk.c) / 2);
     add("SK", "Skid", { type: "lumber", c: sk.c, d: sk.d, label: sk.label }, L_out, sk.d, sk.c, ys.map((y) => box(-w, y, zSK, L_out, sk.c, sk.d)));
   }
   const outer = { L: L_out, W: W_out, H: H_noSkid + (skids ? tier.skid.d : 0) };

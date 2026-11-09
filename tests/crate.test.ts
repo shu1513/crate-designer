@@ -30,6 +30,11 @@ describe("R15, R17: crate pieces and sizes", () => {
     expect(d.crate.outer).toEqual({ L: 1632, W: 336, H: 414 });
     expect(d.crate.skids).toBe(2);
     expect(cut(d, "SK")).toBe("2 × 38×89×1632");
+    // Skids sit under the long rails so the rail-to-skid screws land in the skid, not beside it.
+    const rails = d.crate.pieces.find((p) => p.id === "BF-L")!.placements;
+    for (const sk of d.crate.pieces.find((p) => p.id === "SK")!.placements) {
+      expect(rails.some((r) => r.y >= sk.y - 1e-6 && r.y + r.dy <= sk.y + sk.dy + 1e-6), "rail within skid width").toBe(true);
+    }
     expect(cut(d, "BF-L")).toBe("2 × 19×64×1574");
     expect(cut(d, "BF-S")).toBe("2 × 19×64×240");
     expect(cut(d, "BF-J")).toBe("2 × 19×64×240");

@@ -222,7 +222,7 @@ export function App() {
             </div>
           )}
           {design && (
-            <ResultsBoundary key={recordId ?? "current"}>
+            <ResultsBoundary key={recordId ?? `rev-${revision.current}`}>
               <Results design={design} recordId={recordId} fileName={readOnly ? openedFile : part?.fileName ?? null} problems={problems} onReportProblem={recordId ? reportProblem : undefined} />
             </ResultsBoundary>
           )}

@@ -78,7 +78,7 @@ export function Summary({ design, recordId, problems = [] }: { design: Design; r
         <tbody>
           <tr><th>Design ID</th><td>{recordId ?? "not saved"}</td></tr>
           <tr><th>Parts in crate</th><td>{inputs.quantity} ({layout.rows} row{layout.rows > 1 ? "s" : ""} × {layout.cols} column{layout.cols > 1 ? "s" : ""}), each {u.kg(inputs.weightKg)}</td></tr>
-          <tr><th>Part orientation</th><td>{orientation}; the file's up stays up and the long side runs along the crate length</td></tr>
+          <tr><th>Part orientation</th><td>{orientation}; {design.frame.rules.includes("laid-down") ? "the file's tall axis lies along the crate length" : "the file's up stays up and the long side runs along the crate length"}</td></tr>
           <tr><th>Outer size (L × W × H)</th><td>{u.size(crate.outer.L, crate.outer.W, crate.outer.H)}{crate.skids ? " including skids" : ""}</td></tr>
           <tr><th>Inside size (L × W × H)</th><td>{u.size(crate.inner.L, crate.inner.W, crate.inner.H)}</td></tr>
           <tr><th>Wood to use</th><td>plywood {tier.plywoodLabel}, lumber {tier.stockLabel}, cradle boards and end stops from {u.len(tier.c)} solid wood or plywood{crate.skids ? `, ${crate.skids} skids ${tier.skid.label}` : ", no skids"}; felt and glue if the part has finished surfaces</td></tr>

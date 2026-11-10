@@ -81,6 +81,7 @@ export function PartInput({ onLoaded, onChanging }: Props) {
   async function acceptFiles(files: FileList | File[]) {
     const all = Array.from(files);
     const seq = ++loadSeq.current; // one token for the whole intake, so an older drop finishing late is ignored
+    onChanging(); // the old design is gone the moment new files arrive, before any of them is read
     const json = all.find((f) => f.name.toLowerCase().endsWith(".json"));
     let list = partsList;
     // Precedence for each setting: your own choice, then the parts list, then a guess for this file.

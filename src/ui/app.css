@@ -139,13 +139,10 @@ ul.plain { margin: 0; padding-left: 16px; }
 .file-settings { margin: 8px 0; font-size: 13px; }
 .file-settings summary { cursor: pointer; color: #374151; }
 .error { color: #b91c1c; font-size: 14px; }
-.chips { display: inline-flex; gap: 4px; margin-top: 4px; }
-.chip { padding: 6px 12px; border: 1px solid #374151; border-radius: 999px; background: #fff; cursor: pointer; font-size: 13px; }
 :focus-visible { outline: 3px solid #2563eb; outline-offset: 2px; }
 .column { min-width: 0; }
 .tab-body { overflow-x: auto; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
-.chip.active { background: #1f2937; color: #fff; }
 .parts-list { margin: 8px 0; font-size: 13px; }
 .parts-list summary { cursor: pointer; }
 .parts-list tr.matched td { background: #fef3c7; }

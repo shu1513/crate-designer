@@ -1,5 +1,5 @@
 /** Error and warning codes from SPEC.md section 6, with their exact messages. */
-export type ErrorCode = "E1" | "E2" | "E3" | "E4" | "E5" | "E6" | "E8" | "E10";
+export type ErrorCode = "E1" | "E2" | "E3" | "E4" | "E5" | "E6" | "E8" | "E10" | "E11";
 export type WarningCode = "E7" | "E9";
 
 export class DesignError extends Error {
@@ -19,6 +19,7 @@ export const MESSAGES = {
   E5: "Total weight is over 1800 kg. This needs an engineered crate design, which this app does not do.",
   E6: "Could not find solid cross-sections to cradle this part.",
   E8: "This model is too detailed for the app (over 500,000 triangles). Export a simplified version.",
+  E11: "The design failed its own geometry check, so it was not shown.", // followed by what failed
 } as const;
 
 /** E7 text with {{mm:N}} tokens so the screen can show it in the chosen unit (R20). */

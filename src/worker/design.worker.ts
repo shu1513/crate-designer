@@ -44,9 +44,12 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
     if (request.type === "loadPart") currentPart = null;
     if (err instanceof DesignError) {
       reply({ id: request.id, type: "error", code: err.code, message: err.message, used });
-    } else {
+    } else if (request.type === "loadPart") {
       // Anything unexpected while reading a file is reported as an unreadable model (SPEC E1).
       reply({ id: request.id, type: "error", code: "E1", message: MESSAGES.E1 });
+    } else {
+      // A bug in the design rules must not masquerade as a bad file.
+      reply({ id: request.id, type: "error", code: "E11", message: `${MESSAGES.E11} ${(err as Error).message}` });
     }
   }
 };

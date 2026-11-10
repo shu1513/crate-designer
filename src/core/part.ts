@@ -30,7 +30,8 @@ export const UNIT_TO_MM: Record<ModelUnits, number> = { m: 1000, mm: 1, in: 25.4
 
 /**
  * Guesses the file's unit from its largest raw extent: machined parts are between about 30 mm and
- * 20 m, so a raw extent of 1.5 reads as meters, 1500 as millimeters, 60 as inches.
+ * 20 m, so a raw extent of 1.5 reads as meters, 1500 as millimeters, and only 20..30 (too big for
+ * a part in meters, too small for one in millimeters) reads as inches.
  */
 export function guessModelUnits(rawMaxExtent: number): ModelUnits {
   const v = rawMaxExtent;

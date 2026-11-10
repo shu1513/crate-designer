@@ -18,7 +18,6 @@ const WALL = /^(SS|ES|SC-|EC-)/;
 /** Three.js view of the part and the crate pieces (SPEC 5.1). Falls back to text without WebGL. */
 export function Preview3D({ design, partPositions, hideLid, hideWalls }: Props) {
   const mount = useRef<HTMLDivElement>(null);
-  const failed = useRef(false);
 
   useEffect(() => {
     const el = mount.current;
@@ -27,7 +26,6 @@ export function Preview3D({ design, partPositions, hideLid, hideWalls }: Props) 
     try {
       renderer = new THREE.WebGLRenderer({ antialias: true });
     } catch {
-      failed.current = true;
       el.textContent = "3D preview unavailable in this browser.";
       return;
     }

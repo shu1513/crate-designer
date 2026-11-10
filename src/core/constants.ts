@@ -16,6 +16,12 @@ export const CLEARANCE = {
   shimThreshold: 6,
 } as const;
 
+/**
+ * Shortest cleat run the cavity may produce (SPEC 5.2): the inside length, width, and height are
+ * never under 2d + this, so every short cleat (EC-H, LC-S, SC-M, ...) is at least one screw pitch
+ * long and its two screws keep their edge distance. Parts are centred in a widened cavity.
+ */
+export const MIN_CLEAT_RUN = 100;
 /** Cradle-span width above which the structure moves up one tier (SPEC R13). */
 export const PROMOTE_WIDTH = 1200;
 /** Net load above which the app refuses to design (SPEC R14, ASTM D6039 limit 1814 kg). */

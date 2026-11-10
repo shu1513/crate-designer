@@ -28,11 +28,17 @@ export function isStorableDesign(d: unknown): d is { inputs: { quantity: number 
   };
   const n = (v: unknown) => typeof v === "number" && Number.isFinite(v) && v > 0;
   const arr = Array.isArray;
+  const obj = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null;
+  // Every entry the screen maps over must at least be an object with the fields it reads first.
+  const steps = x["steps"];
+  const pieces = x.crate?.pieces;
   return n(x.inputs?.quantity) && n(x.inputs?.weightKg) && typeof x.inputs?.modelUnits === "string" && typeof x.inputs?.upAxis === "string"
-    && n(x.crate?.outer?.L) && n(x.crate?.outer?.W) && n(x.crate?.outer?.H) && arr(x.crate?.pieces) && typeof x.crate?.inner === "object"
+    && n(x.crate?.outer?.L) && n(x.crate?.outer?.W) && n(x.crate?.outer?.H) && obj(x.crate?.inner)
+    && arr(pieces) && pieces.every((p) => obj(p) && typeof p["id"] === "string" && arr(p["placements"]) && arr(p["cutouts"]) && obj(p["material"]))
     && arr(x.frame?.rules) && n(x.frame?.L) && n(x.frame?.W) && n(x.frame?.H)
     && arr(x.layout?.partOrigins) && typeof x.tier?.name === "string" && arr(x.restraint?.stations)
-    && arr(x["fasteners"]) && arr(x["steps"]) && (x["steps"] as unknown[]).every((s) => typeof (s as { id?: unknown }).id === "string" && typeof (s as { text?: unknown }).text === "string");
+    && arr(x["fasteners"]) && arr(x["warnings"])
+    && arr(steps) && steps.every((s) => obj(s) && typeof s["id"] === "string" && typeof s["text"] === "string" && arr(s["highlight"]) && arr(s["inPlace"]));
 }
 
 export class RecordStore {

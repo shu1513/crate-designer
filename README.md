@@ -19,8 +19,8 @@ Options: `PORT=9000 npm start` changes the port; `DB_PATH=/some/where.sqlite npm
 
 ## Use it
 
-1. Drop a `.glb` file on the left panel (or click Choose file). The part's size appears. If it looks wrong, change **Model units** (the sample files are in meters) or **Up axis** (the samples are Z up; most glTF exports are Y up).
-2. Type the **quantity** going in the crate and the **weight of one part**.
+1. Drop a `.glb` file on the left panel (or click **Choose files**), together with the shop's `parts.json` if you have it. The part's size appears. The app guesses the file's unit from its size and the up axis from the program that wrote it, or takes both from `parts.json`. If the part looks wrong, open **Only if the part looks wrong** and change **The file's numbers are in** (the sample files are in meters) or **Which way is up in the file** (the samples are Z up; most other glTF exports are Y up).
+2. Type the **quantity** going in the crate and the **weight of one part** (both prefilled when `parts.json` knows the part).
 3. Press **Design crate**. The 3D view shows the crate with the parts inside; the right panel shows the overview, pieces to cut, screws, and the build steps with a drawing per step. The design is saved with an ID like `CR-20261109-001`.
 4. Press **Print the build package** for the paper: overview, pieces to cut, screws, cradle board drawings with pocket tables, then the steps two to a page, with the design ID on every sheet.
 5. **mm / in** switches every number on screen and on paper.
@@ -38,8 +38,9 @@ With the three sample parts in `samples/` (see `samples/README.md`):
 | any `.txt` renamed to `.glb` | | | Exact E1 message, no design |
 | PART-002 | 100 | 27 kg | E5: over 1800 kg, refused |
 | PART-001 | 1 | 21.5 kg, with "The file's numbers are in" set to millimeters | E2: says what the part would measure and that the file is probably in meters |
+| `samples/synthetic/` (14 made-up shapes, see its README) | | | L-bracket, bosses, Y-up and inch files, a tiny pin (E10), a heavy block (E5) |
 
-Toggle **mm / in** on any of these, print one, then open **History** and reopen it.
+Toggle **mm / in** on any of these, print one, then open **Past designs** and reopen it.
 
 ## Develop
 
@@ -52,7 +53,7 @@ npm test         # tests only
 ## Layout
 
 - `src/core/` pure design rules (no browser or Node APIs), run inside a Web Worker. Entry point: `design.ts` → `designFromPart`.
-  - `glb.ts` reads the model, `part.ts` scales and measures it, `orientation.ts` and `layout.ts` place the copies, `tier.ts` picks the structure, `restraint.ts` finds the cradle stations and pockets, `crate.ts` lists every piece with its position, `fasteners.ts` counts screws, `steps.ts` writes the one-action build steps, `drawings.ts` draws them, `checks.ts` proves nothing overlaps.
+  - `glb.ts` reads the model, `part.ts` scales and measures it, `orientation.ts` and `layout.ts` place the copies, `tier.ts` picks the structure, `restraint.ts` finds the cradle stations and pockets, `crate.ts` lists every piece with its position, `fasteners.ts` counts screws, `steps.ts` writes the one-action build steps, `drawings.ts` draws them, `checks.ts` holds the geometry checks (piece overlap, part-to-wood intersection) that every design runs on itself and the tests run on every fixture.
 - `src/worker/` the worker and its client
 - `src/ui/` React screens, print styles, records client
 - `server/` the local Node service: serves the built app, keeps records in SQLite, answers `/api/*`
@@ -61,4 +62,4 @@ npm test         # tests only
 
 ## Limits (by design, see SPEC.md section 6)
 
-Binary glTF 2.0 only, uncompressed, up to 500,000 triangles. One part type per crate, single layer. Net load up to 1800 kg. Straight saw cuts only; curved saddles are not produced.
+Binary glTF 2.0 only, uncompressed, up to 500,000 triangles. One part type per crate, single layer. Net load up to 1800 kg. Straight saw cuts only; curved saddles are not produced. Designs whose GLB is over 20 MB still work and print but are not saved to Past designs (the screen says so); a records export file must stay under 256 MB to import.

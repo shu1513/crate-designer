@@ -18,6 +18,9 @@ describe("R20: formatting", () => {
     expect(formatLength(1632, "in")).toBe("64 1/4 in");
     expect(formatLength(25.4, "in")).toBe("1 in");
     expect(formatLength(1.6, "in")).toBe("1/16 in");
+    expect(formatLength(1, "in")).toBe("1/32 in"); // under one inch: 32nds, so a 1 mm limit never rounds up to 1.6 mm
+    expect(formatLength(24, "in")).toBe("15/16 in");
+    expect(formatLength(25.3, "in")).toBe("1 in");
     expect(formatWeight(27, "mm")).toBe("27 kg");
     expect(formatWeight(27, "in")).toBe("59.5 lb");
     expect(renderText("Mark lines at {{mm:306}} and {{mm:765}}.", "in")).toBe("Mark lines at 12 1/16 in and 30 1/8 in.");
@@ -57,11 +60,38 @@ describe("R18: build steps", () => {
     expect(d.steps.map((s) => s.id).slice(0, 5)).toEqual(["1a", "1b", "1c", "1d", "2a"]);
   });
 
-  it("T-R15: every piece ID appears in at least one step", () => {
+  it("T-R15: every piece ID is placed or fastened in some step after the inventory (group 1 alone does not count)", () => {
     for (const d of [designFromPart(shaftLike(), inputs(1, 27)), designFromPart(bracketLike(), inputs(8, 21.5))]) {
-      const mentioned = new Set(d.steps.flatMap((s) => s.pieceIds));
+      const mentioned = new Set(d.steps.filter((s) => s.group >= 2).flatMap((s) => s.pieceIds));
       for (const p of d.crate.pieces) expect(mentioned.has(p.id), p.id).toBe(true);
     }
+  });
+
+  it("the lid is built boards first, then cleats, so every board web is reachable and cleat screws skip the boards", () => {
+    const d = designFromPart(shaftLike(), inputs(1, 27));
+    const lid = d.steps.filter((s) => s.group === 9);
+    const boardScrews = lid.findIndex((s) => s.screw && s.pieceIds.includes("TC-1"));
+    const cleatsPlaced = lid.findIndex((s) => s.text.startsWith("Place LC-"));
+    const cleatScrews = lid.findIndex((s) => s.screw && s.pieceIds.includes("LC-L"));
+    expect(boardScrews).toBeGreaterThanOrEqual(0);
+    expect(boardScrews).toBeLessThan(cleatsPlaced);
+    expect(cleatsPlaced).toBeLessThan(cleatScrews);
+    expect(lid[cleatScrews]!.note).toMatch(/leave that screw out/);
+    expect(lid.filter((s) => s.flip)).toHaveLength(2);
+  });
+
+  it("the loading step says which way round only when the part really fits one way, by mirror check at every station", () => {
+    // 2400 mm beam (four stations at 480, 960, 1440, 1920) with one collar at the second station:
+    // both ends look alike, but the part is one-way.
+    const collarMid = mmPart(buildGlb([{ size: [2400, 80, 80], center: [1200, 0, 40] }, { size: [60, 140, 140], center: [960, 0, 70] }]));
+    const d = designFromPart(collarMid, inputs(1, 40));
+    expect(d.restraint.stations).toHaveLength(4);
+    const lower = d.steps.find((s) => s.text.startsWith("Lower each part"))!;
+    expect(lower.text).toMatch(/sits fully down/); // no visible end difference, so the check is by feel
+    expect(lower.note).toMatch(/turn it end for end/);
+    // The same beam with collars at both of those stations is reversible again.
+    const twoCollars = mmPart(buildGlb([{ size: [2400, 80, 80], center: [1200, 0, 40] }, { size: [60, 140, 140], center: [960, 0, 70] }, { size: [60, 140, 140], center: [1440, 0, 70] }]));
+    expect(designFromPart(twoCollars, inputs(1, 40)).steps.find((s) => s.text.startsWith("Lower each part"))!.note).toMatch(/either way round/);
   });
 
   it("T-R12: the part-loading group states the 6 mm gap threshold as an If step with a unit token", () => {

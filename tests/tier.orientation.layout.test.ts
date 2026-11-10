@@ -5,7 +5,7 @@ import { validateInputs } from "../src/core/inputs.ts";
 import { orientPart } from "../src/core/orientation.ts";
 import { chooseLayout, planLayout } from "../src/core/layout.ts";
 import { promoteIfWide, selectTier } from "../src/core/tier.ts";
-import { CLEARANCE } from "../src/core/constants.ts";
+import { CLEARANCE, MIN_CLEAT_RUN } from "../src/core/constants.ts";
 import { buildGlb } from "./helpers/glb.ts";
 import { loadSample, samplesPresent } from "./helpers/samples.ts";
 
@@ -212,17 +212,27 @@ describe("R6, R7: layout", () => {
     }
   });
 
-  it("a narrow part gets a cavity at least two cleats wide, with the part centred", () => {
+  it("a narrow part gets a cavity at least two cleats plus one screw pitch wide, with the part centred", () => {
     const tier = selectTier(1);
-    const layout = chooseLayout({ L: 100, W: 20, H: 50 }, 1, tier);
-    expect(layout.W_in).toBe(2 * tier.d + 20);
+    const layout = chooseLayout({ L: 300, W: 20, H: 50 }, 1, tier);
+    expect(layout.W_in).toBe(2 * tier.d + MIN_CLEAT_RUN);
     const o = layout.partOrigins[0]!;
     expect(o.y).toBeCloseTo((layout.W_in - 20) / 2, 6);
+    expect(o.x).toBe(g_c + tier.c); // the length was not widened: the stop sits against the end skin
   });
 
-  it("E10 guard input: a thin part still gets a cavity tall enough for the cleats", () => {
+  it("a short part gets the same minimum along the length, centred, so the short lid cleats never meet", () => {
+    const tier = selectTier(1);
+    const layout = chooseLayout({ L: 60, W: 40, H: 30 }, 1, tier);
+    expect(layout.L_in).toBe(2 * tier.d + MIN_CLEAT_RUN);
+    const o = layout.partOrigins[0]!;
+    expect(o.x).toBeCloseTo((layout.L_in - 60) / 2, 6);
+    expect(layout.L_in - (o.x + 60)).toBeCloseTo(o.x, 6);
+  });
+
+  it("a thin part still gets a cavity tall enough for the cleats and their intermediate runs", () => {
     const tier = selectTier(5);
     const layout = chooseLayout({ L: 300, W: 200, H: 6 }, 1, tier);
-    expect(layout.H_in).toBe(2 * tier.d + 20);
+    expect(layout.H_in).toBe(2 * tier.d + MIN_CLEAT_RUN - tier.t); // intermediate cleats are H_in + t − 2d long
   });
 });

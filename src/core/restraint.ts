@@ -22,6 +22,11 @@ export interface SlabExtents {
    * a step, or a seat that exists only in the slab margin, scores low and is not chosen.
    */
   bearingWidth: number;
+  /**
+   * Both board faces have a point within 1 mm of the slab's lowest Z. Otherwise the part would
+   * touch the pocket floor only in the slab margin, outside the wood, and could drop and shift.
+   */
+  seated: boolean;
   /** Highest Z of a point at minY or maxY (where the part is widest); pocket side walls stop here. */
   z_eq: number;
   pointCount: number;
@@ -132,7 +137,8 @@ export function slabExtents(positions: Float32Array, x0: number, x1: number, bx0
     if (ys[k]! <= minY + EXTREME_TOL || ys[k]! >= maxY - EXTREME_TOL) z_eq = Math.max(z_eq, zs[k]!);
   }
   const bearing = (f: number) => (bearMax[f]! > bearMin[f]! ? bearMax[f]! - bearMin[f]! : 0);
-  return { minY, maxY, minZ, maxZ, bearingWidth: Math.min(bearing(0), bearing(1)), z_eq, pointCount: ys.length };
+  const seated = bearMin[0]! !== Infinity && bearMin[1]! !== Infinity;
+  return { minY, maxY, minZ, maxZ, bearingWidth: Math.min(bearing(0), bearing(1)), seated, z_eq, pointCount: ys.length };
 }
 
 /** Number of stations and their nominal positions: evenly from 20% to 80% of the length. */
@@ -145,8 +151,8 @@ export function nominalStations(L: number): number[] {
 
 /**
  * Picks each station in increasing X: among candidates nominal + 10k mm (|10k| ≤ 10% of L)
- * that have geometry, a usable pocket depth, and keep min(100, L/2)..600 mm to the previous
- * station, take the widest bearing; ties go to the candidate nearest the nominal, then the
+ * that have geometry, a seat on both board faces, a usable pocket depth, and keep
+ * min(100, L/2)..600 mm to the previous station, take the widest bearing; ties go to the candidate nearest the nominal, then the
  * lower X. No candidate → E6. Greedy by design (SPEC D32): a station is never revisited once
  * chosen, so an unusual part with gaps can be refused even though some other combination
  * would have worked.
@@ -172,6 +178,7 @@ export function chooseStations(frame: PartFrame, tier: Tier): Station[] {
       if (prev && (x - prev.x < minStationSpacing || x - prev.x > maxStationSpacing)) continue;
       const extents = slabExtents(frame.positions, x - half, x + half, x - tier.c / 2, x + tier.c / 2);
       if (!extents) continue;
+      if (!extents.seated) continue; // the part would rest only in the slab margin, not on the board
       if (extents.z_eq - extents.minZ <= 0) continue; // no usable pocket depth here (widest point is the floor)
       const dist = Math.abs(k * SEARCH_STEP);
       const betterScore = extents.bearingWidth > bestScore + 1e-9;
@@ -186,6 +193,23 @@ export function chooseStations(frame: PartFrame, tier: Tier): Station[] {
     stations.push(best);
   });
   return stations;
+}
+
+/**
+ * Would the part also fit its pockets turned end for end (rotated 180° about Z)? True only when,
+ * at every station, the slab mirrored about the part's middle has the same extents (within 1 mm),
+ * with Y reflected. Used by the loading step: anything else must say which way round (SPEC 5.6).
+ */
+export function fitsReversed(frame: PartFrame, stations: Station[], c: number): boolean {
+  const half = c / 2 + SLAB_MARGIN;
+  const same = (a: number, b: number) => Math.abs(a - b) <= 1;
+  return stations.every((s) => {
+    const x = frame.L - s.x;
+    const m = slabExtents(frame.positions, x - half, x + half, x - c / 2, x + c / 2);
+    if (!m) return false;
+    const e = s.extents;
+    return same(frame.W - m.maxY, e.minY) && same(frame.W - m.minY, e.maxY) && same(m.minZ, e.minZ) && same(m.maxZ, e.maxZ) && same(m.z_eq, e.z_eq);
+  });
 }
 
 /** Highest Z of the part within the last 20 mm at one end (part-local). */

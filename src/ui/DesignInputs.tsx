@@ -60,8 +60,10 @@ export function DesignInputs({ disabled, busy, onDesign, onChange, unit, suggest
   const quantityOk = quantityText.trim() !== "" && Number.isInteger(quantity) && quantity >= 1;
   const weightEntered = Number(weightText);
   const weightOk = weightText.trim() !== "" && Number.isFinite(weightEntered) && weightEntered > 0;
-  // Weight is typed in the display unit; the design always works in kilograms.
-  const weightKg = unit === "in" ? weightEntered / LB_PER_KG : weightEntered;
+  // Weight is typed in the display unit; the design always works in kilograms. The kilogram value
+  // is the one that was typed or prefilled, never re-read from the rounded text after a unit toggle
+  // (45 kg shown as 99.21 lb must still design as 45 kg, not 45.0009 kg).
+  const weightKg = weightKgRef.current ?? (unit === "in" ? weightEntered / LB_PER_KG : weightEntered);
 
   function onQuantityChange(e: ChangeEvent<HTMLInputElement>) {
     touched.current.quantity = true;
@@ -80,12 +82,12 @@ export function DesignInputs({ disabled, busy, onDesign, onChange, unit, suggest
     <div className="design-inputs">
       <label className="field">
         Quantity in this crate
-        <input type="number" min={1} step={1} value={quantityText} onChange={onQuantityChange} />
+        <input type="number" min={1} step={1} value={quantityText} onChange={onQuantityChange} disabled={disabled} />
         {quantityText !== "" && !quantityOk && <span className="error">{MESSAGES.E3}</span>}
       </label>
       <label className="field">
         Weight of one part ({unit === "in" ? "lb" : "kg"})
-        <input type="number" min={0} step="any" value={weightText} onChange={onWeightChange} placeholder={unit === "in" ? "e.g. 59.5" : "e.g. 27"} />
+        <input type="number" min={0} step="any" value={weightText} onChange={onWeightChange} placeholder={unit === "in" ? "e.g. 59.5" : "e.g. 27"} disabled={disabled} />
         {weightText !== "" && !weightOk && <span className="error">{MESSAGES.E4}</span>}
       </label>
       <button className="primary" disabled={disabled || busy || !quantityOk || !weightOk} onClick={() => onDesign(quantity, weightKg)}>

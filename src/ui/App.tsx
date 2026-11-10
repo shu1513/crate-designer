@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { Component, useEffect, useRef, useState, type ReactNode } from "react";
 import type { Design } from "../core/design.ts";
-import type { DisplayUnit } from "../core/format.ts";
+import { formatWeight, type DisplayUnit } from "../core/format.ts";
 import { loadPart } from "../core/part.ts";
 import { applyOrientation } from "../core/orientation.ts";
 import { designWorker } from "../worker/client.ts";
@@ -13,6 +13,16 @@ import { Results } from "./Results.tsx";
 import { UnitContext } from "./units.tsx";
 
 type Health = { ok: boolean; version: string } | null;
+
+/** A saved record that cannot be drawn (edited by hand, or from an older version) must not blank the whole page. */
+class ResultsBoundary extends Component<{ children: ReactNode }, { message: string | null }> {
+  state = { message: null as string | null };
+  static getDerivedStateFromError(err: Error) { return { message: err.message }; }
+  render() {
+    if (this.state.message) return <div className="error-box"><strong>This design cannot be shown</strong><p>The saved record is damaged or from an incompatible version ({this.state.message}).</p></div>;
+    return this.props.children;
+  }
+}
 
 export function App() {
   const [health, setHealth] = useState<Health>(null);
@@ -33,19 +43,27 @@ export function App() {
   const [viewKey, setViewKey] = useState(0); // bumping it re-frames the 3D view
   const [openError, setOpenError] = useState<string | null>(null);
   const [inputKey, setInputKey] = useState(0); // remounts the file box to clear it
-  function startNew() {
-    invalidate();
-    setPart(null);
-    setPartPositions(null);
-    setOpenedFile(null);
-    setPastOpen(false);
-    setInputKey((k) => k + 1);
-    window.scrollTo({ top: 0 });
-  }
   const [openedFile, setOpenedFile] = useState<string | null>(null);
   // Bumped on every input change; worker replies from an older revision are ignored (R23).
   const revision = useRef(0);
-  const invalidate = () => { revision.current++; setDesign(null); setDesignError(null); setRecordId(null); setSaveWarning(null); setProblems([]); setReadOnly(false); };
+  // The record on screen right now, readable from inside an await (state would be stale there).
+  const currentRecord = useRef<string | null>(null);
+  currentRecord.current = recordId;
+  // Also ends any "Designing…" state: a reply from the old revision is ignored, so nothing else would clear it.
+  const invalidate = () => { revision.current++; setBusy(false); setDesign(null); setDesignError(null); setRecordId(null); setSaveWarning(null); setProblems([]); setReadOnly(false); };
+  // Forget the part as well as the design: the file box clears, and step 2 waits for a new file.
+  function clearPart() {
+    setPart(null);
+    setPartPositions(null);
+    setOpenedFile(null);
+    setInputKey((k) => k + 1);
+  }
+  function startNew() {
+    invalidate();
+    clearPart();
+    setPastOpen(false);
+    window.scrollTo({ top: 0 });
+  }
 
   useEffect(() => {
     fetch("/api/health")
@@ -112,6 +130,8 @@ export function App() {
       const settings = { modelUnits: rec.design.inputs.modelUnits, upAxis: rec.design.inputs.upAxis };
       const mesh = loadPart(bytes, settings);
       const frame = applyOrientation(mesh, rec.design.frame.rules); // the rules it was saved with, not today's
+      // A part loaded earlier must not stay designable behind a saved record: the record's own file is what is shown.
+      clearPart();
       setDesign({ ...rec.design, frame: { ...rec.design.frame, positions: frame.positions } });
       setPartPositions(mesh.positions);
       setRecordId(rec.id);
@@ -136,9 +156,10 @@ export function App() {
     const forRecord = recordId;
     try {
       const mark = await recordsApi.addProblem(forRecord, stepId, note.slice(0, 200));
-      if (forRecord !== recordId) return; // a different record is open now
+      if (forRecord !== currentRecord.current) return; // a different record is open now
       setProblems((p) => [...p, mark]);
     } catch (err) {
+      if (forRecord !== currentRecord.current) return;
       setSaveWarning(`Could not save the problem mark (${(err as Error).message}).`);
     }
   }
@@ -170,7 +191,7 @@ export function App() {
 
             {readOnly && design && (
               <div className="saved-banner">
-                <p className="status">Showing saved design <strong>{recordId}</strong> exactly as it was saved: {openedFile}, {design.inputs.quantity} × {design.inputs.weightKg} kg.</p>
+                <p className="status">Showing saved design <strong>{recordId}</strong> exactly as it was saved: {openedFile}, {design.inputs.quantity} × {formatWeight(design.inputs.weightKg, unit)}.</p>
                 <button className="primary" onClick={startNew}>Start a new design</button>
               </div>
             )}
@@ -200,7 +221,11 @@ export function App() {
               <button className="secondary" onClick={startNew}>Start a new design</button>
             </div>
           )}
-          {design && <Results design={design} recordId={recordId} fileName={readOnly ? openedFile : part?.fileName ?? null} problems={problems} onReportProblem={recordId ? reportProblem : undefined} />}
+          {design && (
+            <ResultsBoundary key={recordId ?? "current"}>
+              <Results design={design} recordId={recordId} fileName={readOnly ? openedFile : part?.fileName ?? null} problems={problems} onReportProblem={recordId ? reportProblem : undefined} />
+            </ResultsBoundary>
+          )}
           <details className="past-designs no-print" open={pastOpen} onToggle={(e) => setPastOpen((e.target as HTMLDetailsElement).open)}>
             <summary>Past designs</summary>
             {openError && <p className="error">{openError}</p>}

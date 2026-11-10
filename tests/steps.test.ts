@@ -92,6 +92,11 @@ describe("R18: build steps", () => {
     // The same beam with collars at both of those stations is reversible again.
     const twoCollars = mmPart(buildGlb([{ size: [2400, 80, 80], center: [1200, 0, 40] }, { size: [60, 140, 140], center: [960, 0, 70] }, { size: [60, 140, 140], center: [1440, 0, 70] }]));
     expect(designFromPart(twoCollars, inputs(1, 40)).steps.find((s) => s.text.startsWith("Lower each part"))!.note).toMatch(/either way round/);
+    // A stub at one end only (outside every station) still makes the part one-way: the end stops are cut to the end faces.
+    const stub = mmPart(buildGlb([{ size: [1000, 88, 88], center: [500, 0, 44] }, { size: [30, 100, 100], center: [1015, 0, 50] }]));
+    const stubbed = designFromPart(stub, inputs(1, 20));
+    expect(stubbed.restraint.endStops.map((s) => s.height)).toEqual([25 + 88, 25 + 100]);
+    expect(stubbed.steps.find((s) => s.text.startsWith("Lower each part"))!.note).toMatch(/one way round/);
   });
 
   it("T-R12: the part-loading group states the 6 mm gap threshold as an If step with a unit token", () => {

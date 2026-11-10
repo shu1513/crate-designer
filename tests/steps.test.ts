@@ -120,7 +120,7 @@ describe("R18: build steps", () => {
   it("novice-read fixes (T-R18b cold reads): screw heads sunk flush, start point for runs, diagonals, pilot holes, lid dry fit", () => {
     const d = designFromPart(bracketLike(), inputs(1, 21.5));
     const text = (id: string) => { const s = d.steps.find((x) => x.id === id)!; return `${s.text} ${s.note ?? ""} ${s.tool ?? ""}`; };
-    expect(text("1a")).toMatch(/start \{\{mm:50\}\} from each end/);
+    expect(text("1a")).toMatch(/start \{\{mm:25\}\} from each end/);
     expect(text("1c")).toMatch(/top face up/);
     const floorScrews = d.steps.find((s) => s.group === 3 && s.screw)!;
     expect(`${floorScrews.text} ${floorScrews.note}`).toMatch(/centred in each web.*Sink every head flush/s);

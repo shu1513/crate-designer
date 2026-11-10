@@ -1,4 +1,4 @@
-import { useRef, useState, type ChangeEvent, type DragEvent } from "react";
+import { useEffect, useRef, useState, type ChangeEvent, type DragEvent } from "react";
 import type { ModelUnits, UpAxis } from "../core/part.ts";
 import { matchPart, parsePartsList, parsePartsListSettings, type PartsListEntry } from "../core/partsList.ts";
 import type { PartSummary } from "../worker/protocol.ts";
@@ -38,6 +38,10 @@ export function PartInput({ onLoaded, onChanging }: Props) {
   const [partsListError, setPartsListError] = useState<string | null>(null);
   const loadSeq = useRef(0);
   const fileInput = useRef<HTMLInputElement>(null);
+  // When the box is replaced (Start a new design, or a saved record opened) while a file is still being
+  // read, the old box must stay silent: its callbacks would wipe what replaced it.
+  const mounted = useRef(true);
+  useEffect(() => () => { mounted.current = false; loadSeq.current++; }, []);
 
   async function load(name: string, data: ArrayBuffer, units: ModelUnits | "auto", up: UpAxis | "auto", list: PartsListEntry[] | null = partsList, seq = ++loadSeq.current) {
     onChanging();
@@ -47,7 +51,7 @@ export function PartInput({ onLoaded, onChanging }: Props) {
     const copy = data.slice(0);
     try {
       const res = await designWorker.send({ type: "loadPart", bytes: copy, modelUnits: units, upAxis: up }, [copy]);
-      if (seq !== loadSeq.current) return; // a newer load superseded this one
+      if (seq !== loadSeq.current || !mounted.current) return; // a newer load superseded this one, or the box is gone
       if (res.type === "partLoaded") {
         setSummary(res.summary);
         setModelUnits(res.summary.modelUnits);
@@ -68,7 +72,7 @@ export function PartInput({ onLoaded, onChanging }: Props) {
         onLoaded(null);
       }
     } catch (err) {
-      if (seq !== loadSeq.current) return;
+      if (seq !== loadSeq.current || !mounted.current) return;
       setSummary(null);
       setError(`The measuring step failed: ${(err as Error).message}`);
       onLoaded(null);
@@ -80,7 +84,7 @@ export function PartInput({ onLoaded, onChanging }: Props) {
   /** A drop may hold a parts list (.json), one or more models (.glb), or both; the list is read first. */
   async function acceptFiles(files: FileList | File[]) {
     const all = Array.from(files);
-    const seq = ++loadSeq.current; // one token for the whole intake, so an older drop finishing late is ignored
+    const seq = ++loadSeq.current; // one token for the whole intake, so an older drop finishing late (or after unmount) is ignored
     onChanging(); // the old design is gone the moment new files arrive, before any of them is read
     const json = all.find((f) => f.name.toLowerCase().endsWith(".json"));
     let list = partsList;
@@ -104,7 +108,7 @@ export function PartInput({ onLoaded, onChanging }: Props) {
     const glb = all.find((f) => f.name.toLowerCase().endsWith(".glb"));
     if (glb) {
       const data = await glb.arrayBuffer();
-      if (seq !== loadSeq.current) return;
+      if (seq !== loadSeq.current || !mounted.current) return;
       setFileName(glb.name);
       setBytes(data);
       await load(glb.name, data, units, up, list, seq);

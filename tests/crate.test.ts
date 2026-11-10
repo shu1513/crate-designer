@@ -107,6 +107,22 @@ describe("R15, R17: crate pieces and sizes", () => {
     expect(stops[1]).toBeCloseTo(o.x + 60 + CLEARANCE.g_c, 6);
   });
 
+  it("a short lid cleat moves along the lid when a top cradle board would sit under it, so its screw rows stay reachable", () => {
+    // 234 mm part at T2 (d = 89): station 1 lands near x 60..80 of the cavity, inside the first short cleat's 0..89 band.
+    const d = designFromPart(mmPart(buildGlb([{ size: [234, 200, 200], center: [117, 0, 100] }])), inputs(1, 50));
+    expect(d.tier.name).toBe("T2");
+    const tops = d.restraint.topBoards.map((b) => [b.x, b.x + b.thickness] as const);
+    const lcS = d.crate.pieces.find((p) => p.id === "LC-S")!;
+    expect(lcS.placements).toHaveLength(2);
+    for (const b of lcS.placements) for (const [a, z] of tops) expect(b.x >= z + 5 - 1e-9 || b.x + b.dx <= a - 5 + 1e-9, `LC-S at ${b.x} clear of board ${a}..${z}`).toBe(true);
+    expect(lcS.placements[0]!.x).toBeGreaterThan(0); // the first one really moved
+    expect(overlappingPieces(d.crate.pieces)).toEqual([]);
+    // The lid step lists each short cleat's own position from the L end.
+    const place = d.steps.find((s) => s.group === 9 && s.text.startsWith("Place LC-"))!;
+    expect(place.positions!.filter((p) => p.label.startsWith("LC-S"))).toHaveLength(2);
+    expect(place.positions!.find((p) => p.label.startsWith("LC-S 1"))!.mm).toBeCloseTo(lcS.placements[0]!.x + d.crate.w, 6);
+  });
+
   it("E11: the design refuses itself when its own geometry check fails (simulated by a corrupt frame)", () => {
     // A part whose declared length is 10 mm under its real geometry puts the far end stop through the part.
     const part = mmPart(buildGlb([{ size: [360, 220, 258], center: [180, 0, 129] }]));

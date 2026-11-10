@@ -68,6 +68,14 @@ describe("R1: GLB loading and bounds", () => {
       const part = loadPart(glb, { modelUnits: "mm", upAxis: "Z" });
       expect(part.triangleCount).toBe(14); // 12 box triangles + 2 from the quad
       expect(part.dims.L).toBeCloseTo(1150, 3);
+      // Both quad triangles face the same way (a strip alternates winding; the reader straightens it).
+      const p = part.positions;
+      const normalZ = (t: number) => {
+        const o = t * 9;
+        const ax = p[o + 3]! - p[o]!, ay = p[o + 4]! - p[o + 1]!, bx = p[o + 6]! - p[o]!, by = p[o + 7]! - p[o + 1]!;
+        return Math.sign(ax * by - ay * bx);
+      };
+      expect(normalZ(12)).toBe(normalZ(13));
     }
     // Points and lines are still ignored.
     const points = patchGlbJson(buildGlb([{ size: [1, 1, 1] }]), (j) => { ((j["meshes"] as { primitives: { mode: number }[] }[])[0]!.primitives[0]!).mode = 0; });

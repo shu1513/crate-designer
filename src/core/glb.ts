@@ -167,12 +167,16 @@ function readPrimitive(json: GltfJson, bin: ArrayBuffer, prim: GltfPrimitive, wo
   return out;
 }
 
-/** Expands a triangle strip or fan into a plain triangle list (winding does not matter here). */
+/**
+ * Expands a triangle strip or fan into a plain triangle list. A strip alternates its winding, so
+ * every odd triangle swaps its first two corners (glTF 3.7.2.1); the preview lights front faces only.
+ */
 function triangulate(indices: ArrayLike<number>, mode: number): number[] {
   const out: number[] = [];
   for (let i = 2; i < indices.length; i++) {
-    if (mode === MODE_TRIANGLE_STRIP) out.push(indices[i - 2]!, indices[i - 1]!, indices[i]!);
-    else out.push(indices[0]!, indices[i - 1]!, indices[i]!);
+    if (mode === MODE_TRIANGLE_FAN) out.push(indices[0]!, indices[i - 1]!, indices[i]!);
+    else if (i % 2 === 0) out.push(indices[i - 2]!, indices[i - 1]!, indices[i]!);
+    else out.push(indices[i - 1]!, indices[i - 2]!, indices[i]!);
   }
   return out;
 }

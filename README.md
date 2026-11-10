@@ -21,8 +21,8 @@ Options: `PORT=9000 npm start` changes the port; `DB_PATH=/some/where.sqlite npm
 
 1. Drop a `.glb` file on the left panel (or click **Choose files**), together with the shop's `parts.json` if you have it. The part's size appears. The app guesses the file's unit from its size and the up axis from the program that wrote it, or takes both from `parts.json`. If the part looks wrong, open **Only if the part looks wrong** and change **The file's numbers are in** (the sample files are in meters) or **Which way is up in the file** (the samples are Z up; most other glTF exports are Y up).
 2. Type the **quantity** going in the crate and the **weight of one part** (both prefilled when `parts.json` knows the part).
-3. Press **Design crate**. The 3D view shows the crate with the parts inside; the right panel shows the overview, pieces to cut, screws, and the build steps with a drawing per step. The design is saved with an ID like `CR-20261109-001`.
-4. Press **Print the build package** for the paper: overview, pieces to cut, screws, cradle board drawings with pocket tables, then the steps two to a page, with the design ID on every sheet.
+3. Press **Design crate**. The 3D view shows the crate with the parts inside; the right panel shows the overview, pieces to cut, cradle boards (one drawing and pocket table each), screws, and the build steps with a drawing per step. The design is saved with an ID like `CR-20261109-001`.
+4. Press **Print the build package** for the paper: overview, pieces to cut, screws, cradle board drawings with pocket tables, then the steps two to a page (the pocket-cutting steps repeat the board drawing beside the action), with the design ID on every sheet.
 5. **mm / in** switches every number on screen and on paper.
 6. **Past designs** (the section under the current design on the right) lists saved designs, filters by part file or date, reopens or reprints any of them exactly as saved, and exports or imports the whole set as one JSON file. While a saved design is open, each step has a *Report a problem* link that records a note against that step.
 

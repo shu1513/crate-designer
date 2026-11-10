@@ -194,6 +194,9 @@ describe("R18, R11: drawings", () => {
     expect(uniform.steps.find((s) => s.text.startsWith("Lower each part"))!.note).toMatch(/either way round/);
     // Pockets are cut in three actions: mark, saw the sides, chisel the waste; the shaft's six boards are all different.
     expect(d.steps.filter((s) => s.group === 2).length).toBe(3 * 6);
+    // Each pocket-cutting step points at the board whose drawing and pocket table it shows; no other step does.
+    for (const s of d.steps) expect(s.board !== undefined, s.id).toBe(s.group === 2);
+    expect(d.steps.find((s) => s.group === 2)!.board).toBe("BC-1");
     // Identical boards share one set of steps: 8 box-brackets have 4 identical bottom boards and 4 identical top boards.
     const many = designFromPart(bracketLike(), inputs(8, 21.5));
     expect(many.steps.filter((s) => s.group === 2).length).toBe(3 * 2);

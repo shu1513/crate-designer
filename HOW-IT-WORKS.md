@@ -40,7 +40,7 @@ Spec first: the brief and three rounds of questions to the interviewer became `S
 
 ## What it cost
 
-Claude Code's own cost meter for the main build session, which covers the spec, all twelve pull requests, the reviews I ran, the audit, and the hand-off documents, reads **$140.38** at Anthropic list prices (Claude Fable 5.1). The transcripts show where it went: about 188 million tokens of cached context re-read across 400-odd model turns (at $0.25 per million, roughly $47), 2.6 million tokens written to cache (about $33), and 0.9 million output tokens (about $45); fresh uncached input was negligible. The earlier short sessions for setup and sample inspection add a few dollars more. CodeRabbit's included reviews were free. The build took about two working days of one person's time plus the spend above.
+Claude Code's own cost meter for the main build session, which covers the spec, all twelve pull requests, the reviews I ran, the audit, and the hand-off documents, reads **$140.38** at Anthropic list prices (Claude Fable 5.1). The earlier short sessions for setup and sample inspection add a few dollars more. CodeRabbit's included reviews were free. The build took about two working days of one person's time plus the spend above.
 
 ## What I would do next
 

@@ -124,24 +124,28 @@ export function buildCrate(layout: Layout, restraint: Restraint, tier: Tier, nee
   // The cleats that run across the lid (short end cleats and middle cleats) must not sit over a top
   // cradle board: the board is screwed from the outside face first (D36) and would cover a whole row
   // of the cleat's screws. Each is moved along the lid, away from its end, until it is clear of every
-  // board and of the cross cleats already placed. The long cleats only meet a board at one spot each,
-  // where the builder leaves that screw out.
+  // board and of the cross cleats already placed, but never past the lid's inset band [0, L_in − d].
+  // A cross cleat with no room is left out: the top cradle boards already span the lid and stiffen it
+  // more than a flat cleat would. The long cleats only meet a board at one spot each, where the
+  // builder leaves that screw out.
   const obstacles: [number, number][] = restraint.topBoards.map((b) => [b.x, b.x + b.thickness]);
-  const across = (desired: number, dir: 1 | -1): number => {
+  const across = (desired: number, dir: 1 | -1): number | null => {
     let x = desired;
     for (let guard = 0; guard < 50; guard++) {
+      if (x < 0 || x > L_in - d) return null;
       const hit = obstacles.find(([a, b]) => x < b + 5 && x + d > a - 5);
-      if (!hit) break;
+      if (!hit) { obstacles.push([x, x + d]); return x; }
       x = dir > 0 ? hit[1] + 5 : hit[0] - 5 - d;
     }
-    obstacles.push([x, x + d]);
-    return x;
+    return null;
   };
-  const lcS = [across(0, 1), across(L_in - d, -1)];
-  add("LC-S", "Lid cleat, short", lumber, W_in - 2 * d, d, c, lcS.map((x) => box(x, d, zLC, d, W_in - 2 * d, c)));
+  const placed = (xs: (number | null)[]) => xs.filter((x): x is number => x !== null).map((x) => box(x, d, zLC, d, W_in - 2 * d, c));
+  const lcS = placed([across(0, 1), across(L_in - d, -1)]);
+  if (lcS.length) add("LC-S", "Lid cleat, short", lumber, W_in - 2 * d, d, c, lcS);
   const lidMids = Math.ceil(L_out / 1200) - 1;
   if (lidMids > 0) {
-    add("LC-M", "Lid cleat, middle", lumber, W_in - 2 * d, d, c, spread(d, L_in - d, lidMids, d).map((x) => box(across(x, 1), d, zLC, d, W_in - 2 * d, c)));
+    const lcM = placed(spread(d, L_in - d, lidMids, d).map((x) => across(x, 1)));
+    if (lcM.length) add("LC-M", "Lid cleat, middle", lumber, W_in - 2 * d, d, c, lcM);
   }
 
   // Cradles and stops from the restraint design.

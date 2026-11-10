@@ -41,7 +41,10 @@ export function PartInput({ onLoaded, onChanging }: Props) {
   // When the box is replaced (Start a new design, or a saved record opened) while a file is still being
   // read, the old box must stay silent: its callbacks would wipe what replaced it.
   const mounted = useRef(true);
-  useEffect(() => () => { mounted.current = false; loadSeq.current++; }, []);
+  useEffect(() => {
+    mounted.current = true; // StrictMode runs setup, cleanup, setup in development: the flag must come back
+    return () => { mounted.current = false; loadSeq.current++; };
+  }, []);
 
   async function load(name: string, data: ArrayBuffer, units: ModelUnits | "auto", up: UpAxis | "auto", list: PartsListEntry[] | null = partsList, seq = ++loadSeq.current) {
     onChanging();

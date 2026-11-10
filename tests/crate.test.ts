@@ -113,14 +113,24 @@ describe("R15, R17: crate pieces and sizes", () => {
     expect(d.tier.name).toBe("T2");
     const tops = d.restraint.topBoards.map((b) => [b.x, b.x + b.thickness] as const);
     const lcS = d.crate.pieces.find((p) => p.id === "LC-S")!;
-    expect(lcS.placements).toHaveLength(2);
-    for (const b of lcS.placements) for (const [a, z] of tops) expect(b.x >= z + 5 - 1e-9 || b.x + b.dx <= a - 5 + 1e-9, `LC-S at ${b.x} clear of board ${a}..${z}`).toBe(true);
+    expect(lcS.placements.length).toBeGreaterThanOrEqual(1);
+    for (const b of lcS.placements) {
+      for (const [a, z] of tops) expect(b.x >= z + 5 - 1e-9 || b.x + b.dx <= a - 5 + 1e-9, `LC-S at ${b.x} clear of board ${a}..${z}`).toBe(true);
+      expect(b.x).toBeGreaterThanOrEqual(0); // never past the lid's inset band
+      expect(b.x + b.dx).toBeLessThanOrEqual(d.crate.inner.L + 1e-9);
+    }
     expect(lcS.placements[0]!.x).toBeGreaterThan(0); // the first one really moved
     expect(overlappingPieces(d.crate.pieces)).toEqual([]);
     // The lid step lists each short cleat's own position from the L end.
     const place = d.steps.find((s) => s.group === 9 && s.text.startsWith("Place LC-"))!;
-    expect(place.positions!.filter((p) => p.label.startsWith("LC-S"))).toHaveLength(2);
+    expect(place.positions!.filter((p) => p.label.startsWith("LC-S"))).toHaveLength(lcS.placements.length);
     expect(place.positions!.find((p) => p.label.startsWith("LC-S 1"))!.mm).toBeCloseTo(lcS.placements[0]!.x + d.crate.w, 6);
+    // When there is no room at all (four small parts, boards everywhere), the short cleats are left out and the design still stands.
+    const crowded = designFromPart(mmPart(buildGlb([{ size: [100, 60, 60], center: [50, 0, 30] }])), inputs(4, 2));
+    const crowdedS = crowded.crate.pieces.find((p) => p.id === "LC-S");
+    for (const b of crowdedS?.placements ?? []) { expect(b.x).toBeGreaterThanOrEqual(0); expect(b.x + b.dx).toBeLessThanOrEqual(crowded.crate.inner.L + 1e-9); }
+    expect(overlappingPieces(crowded.crate.pieces)).toEqual([]);
+    expect(crowded.steps.some((s) => s.group === 9 && s.pieceIds.includes("LC-L"))).toBe(true);
   });
 
   it("E11: the design refuses itself when its own geometry check fails (simulated by a corrupt frame)", () => {

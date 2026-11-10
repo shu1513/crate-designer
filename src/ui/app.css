@@ -63,6 +63,8 @@ table.positions td { padding: 1px 8px 1px 0; }
 .verdict { background: #eef2ff; border: 1px solid #c7d2fe; border-radius: 8px; padding: 10px 12px; font-size: 14px; margin-bottom: 10px; }
 .verdict .link { margin-left: 10px; }
 .progress { font-size: 13px; color: #374151; }
+.complete { background: #dcfce7; border: 1px solid #16a34a; color: #14532d; border-radius: 8px; padding: 10px 12px; font-size: 14px; margin: 8px 0; }
+.print-finish { margin-top: 16px; page-break-inside: avoid; }
 .step.done .step-text { opacity: 0.55; }
 /* A rail of markers down the left of the steps: each marker and the line below it turn green when the step is ticked. */
 .steps.checklist .step-row { position: relative; padding-left: 30px; }

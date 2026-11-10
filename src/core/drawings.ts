@@ -96,7 +96,7 @@ export function boardSvg(piece: Piece, unit: DisplayUnit): string {
   const pockets = piece.cutouts.map((c) => ({ left: c.y - b.y, depth: c.dz, width: c.dy, fromTop: c.z + c.dz >= b.z + b.dz - 1e-6 }));
   const svgPockets = pockets.map((p) => rect(p.left, p.fromTop ? 0 : H - p.depth, p.width, p.depth, "#ffffff")).join("");
   const rows = pockets.map((p, i) => `<tr><td>${i + 1}</td><td>${formatLength(p.left, unit)}</td><td>${formatLength(p.width, unit)}</td><td>${formatLength(p.depth, unit)}</td></tr>`).join("");
-  const caption = `<p class="board-caption">${escape(piece.id)}: ${formatLength(L, unit)} long × ${formatLength(H, unit)} tall × ${formatLength(b.dx, unit)} thick. The left end is the crate's near side (Y = 0). Pockets open ${pockets[0]?.fromTop === false ? "downward, from the bottom edge" : "upward, from the top edge"}.</p>`;
+  const caption = `<p class="board-caption">${escape(piece.id)}: ${formatLength(L, unit)} long × ${formatLength(H, unit)} tall × ${formatLength(b.dx, unit)} thick. The left end is the board's L end (toward the crate's F edge). Pockets open ${pockets[0]?.fromTop === false ? "downward, from the bottom edge" : "upward, from the top edge"}.</p>`;
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${(400 + 2 * pad).toFixed(0)} ${(H * scale + 2 * pad).toFixed(0)}" data-board="${escape(piece.id)}">${rect(0, 0, L, H, "#fde68a")}${svgPockets}</svg>`;
   const table = `<table class="pocket-table" data-board="${escape(piece.id)}"><thead><tr><th>Pocket</th><th>From left end</th><th>Width</th><th>Depth</th></tr></thead><tbody>${rows}</tbody></table>`;
   return svg + caption + table;

@@ -78,12 +78,12 @@ export function Summary({ design, recordId, problems = [] }: { design: Design; r
         <tbody>
           <tr><th>Design ID</th><td>{recordId ?? "not saved"}</td></tr>
           <tr><th>Parts in crate</th><td>{inputs.quantity} ({layout.rows} row{layout.rows > 1 ? "s" : ""} × {layout.cols} column{layout.cols > 1 ? "s" : ""}), each {u.kg(inputs.weightKg)}</td></tr>
-          <tr><th>Part orientation</th><td>{orientation}; long side along the crate length</td></tr>
+          <tr><th>Part orientation</th><td>{orientation}; the file's up stays up and the long side runs along the crate length</td></tr>
           <tr><th>Outer size (L × W × H)</th><td>{u.size(crate.outer.L, crate.outer.W, crate.outer.H)}{crate.skids ? " including skids" : ""}</td></tr>
           <tr><th>Inside size (L × W × H)</th><td>{u.size(crate.inner.L, crate.inner.W, crate.inner.H)}</td></tr>
-          <tr><th>Wood to use</th><td>plywood {tier.plywoodLabel}, lumber {tier.stockLabel}{crate.skids ? `, ${crate.skids} skids ${tier.skid.label}` : ", no skids"}</td></tr>
+          <tr><th>Wood to use</th><td>plywood {tier.plywoodLabel}, lumber {tier.stockLabel}, cradle boards and end stops from {u.len(tier.c)} solid wood or plywood{crate.skids ? `, ${crate.skids} skids ${tier.skid.label}` : ", no skids"}; felt and glue if the part has finished surfaces</td></tr>
           <tr><th>Weights</th><td>parts {u.kg(design.netKg)} + wood {u.kg(design.woodKg)} = about {u.kg(design.grossKg)}</td></tr>
-          <tr><th>Cradle boards</th><td>{design.restraint.stations.length} along each part, at {design.restraint.stations.map((s) => u.len(s.x)).join(", ")} from the part's end</td></tr>
+          <tr><th>Cradle boards</th><td>{design.restraint.stations.length} along each part, centred {design.restraint.stations.map((s) => u.len(s.x)).join(" and ")} from the part's own end (the board lines in step 3a are measured from FP's L end)</td></tr>
         </tbody>
       </table>
       {design.warnings.map((w) => <p key={w} className="warning">{u.text(w)}</p>)}
@@ -188,7 +188,7 @@ export function Steps({ design, recordId = null, problems = [], onReportProblem,
                   <table className="positions"><tbody>{s.positions.map((p) => <tr key={p.label + p.mm}><td>{p.label}</td><td>{u.len(p.mm)}</td></tr>)}</tbody></table>
                 )}
                 {s.note && <div className="note">{u.text(s.note)}</div>}
-                {(s.screw || s.tool) && <div className="muted">{[s.screw && `Screws: ${u.text(s.screw)}`, s.tool && `Tool: ${s.tool}`].filter(Boolean).join(" · ")}</div>}
+                {(s.screw || s.tool) && <div className="muted">{[s.screw && `Screws: ${u.text(s.screw)}`, s.tool && `Tool: ${u.text(s.tool)}`].filter(Boolean).join(" · ")}</div>}
                 {problems.filter((p) => p.stepId === s.id).map((p) => <div key={p.recordedAt} className="warning">Problem reported: {p.note || "(no note)"}</div>)}
                 {onReportProblem && <button className="link no-print" onClick={() => onReportProblem(s.id)}>Report a problem with this step</button>}
               </div>

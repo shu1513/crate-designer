@@ -161,7 +161,9 @@ export function Steps({ design, recordId = null, problems = [], onReportProblem,
   const toggle = (id: string) => setDone((d) => { const n = new Set(d); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   const allDone = done.size === design.steps.length;
   // The last thing the builder does, on screen and on paper: mark the crate so its record can be found later (R25).
-  const finish = `Write ${recordId ?? "the design ID"} on the lid with a marker, next to the L mark, so this design can be found again.`;
+  const finish = recordId
+    ? `Write ${recordId} on the lid with a marker, next to the L mark, so this design can be found again.`
+    : "This design was not saved, so it has no ID: write the part name and today's date on the lid with a marker, next to the L mark.";
   let lastGroup = 0;
   return (
     <>

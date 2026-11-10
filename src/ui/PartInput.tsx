@@ -157,7 +157,7 @@ export function PartInput({ onLoaded, onChanging }: Props) {
               ))}
             </tbody>
           </table>
-          <p className="muted">Drop the matching .glb file to load it; its weight and quantities fill in.</p>
+          <p className="muted">Drop the matching .glb file to load it; its weight and quantity fill in.</p>
         </details>
       )}
       <details className="file-settings">
@@ -192,7 +192,6 @@ export function PartInput({ onLoaded, onChanging }: Props) {
         <div className="measured">
           <p className="status">
             Part size: {u.size(summary.dims.L, summary.dims.W, summary.dims.H)}
-            <span className="muted"> ({summary.triangleCount.toLocaleString()} triangles)</span>
           </p>
           {summary.warnings.map((w) => (
             <p key={w} className="warning">{u.text(w)}</p>

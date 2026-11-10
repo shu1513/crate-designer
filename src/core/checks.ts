@@ -83,9 +83,18 @@ function cross(a: number[], b: number[]): number[] {
   return [a[1]! * b[2]! - a[2]! * b[1]!, a[2]! * b[0]! - a[0]! * b[2]!, a[0]! * b[1]! - a[1]! * b[0]!];
 }
 
-/** Pieces whose solid wood intersects the part mesh placed at `offset` (crate coordinates). */
-export function piecesHitByPart(pieces: Piece[], positions: Float32Array, offset: [number, number, number] = [0, 0, 0]): string[] {
+/**
+ * Pieces whose solid wood intersects the part mesh placed at `offset` (crate coordinates).
+ * With `near` given, only solid boxes that overlap that box are tested: a board with many pockets
+ * splits into many boxes, and testing boxes far from the part against every triangle is wasted work.
+ */
+export function piecesHitByPart(pieces: Piece[], positions: Float32Array, offset: [number, number, number] = [0, 0, 0], near?: Box): string[] {
   const hit = new Set<string>();
-  for (const p of pieces) for (const b of solids(p)) if (meshIntersectsBox(positions, b, offset)) { hit.add(p.id); break; }
+  for (const p of pieces) {
+    for (const b of solids(p)) {
+      if (near && !boxesOverlap(b, near)) continue;
+      if (meshIntersectsBox(positions, b, offset)) { hit.add(p.id); break; }
+    }
+  }
   return [...hit];
 }

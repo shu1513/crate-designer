@@ -198,11 +198,13 @@ export function chooseStations(frame: PartFrame, tier: Tier): Station[] {
 /**
  * Would the part also fit its pockets turned end for end (rotated 180° about Z)? True only when,
  * at every station, the slab mirrored about the part's middle has the same extents (within 1 mm),
- * with Y reflected. Used by the loading step: anything else must say which way round (SPEC 5.6).
+ * with Y reflected, and the two end faces are the same height (the end stops are cut to them).
+ * Used by the loading step: anything else must say which way round (SPEC 5.6).
  */
 export function fitsReversed(frame: PartFrame, stations: Station[], c: number): boolean {
   const half = c / 2 + SLAB_MARGIN;
   const same = (a: number, b: number) => Math.abs(a - b) <= 1;
+  if (!same(endHeight(frame.positions, 0, 20), endHeight(frame.positions, frame.L - 20, frame.L))) return false;
   return stations.every((s) => {
     const x = frame.L - s.x;
     const m = slabExtents(frame.positions, x - half, x + half, x - c / 2, x + c / 2);

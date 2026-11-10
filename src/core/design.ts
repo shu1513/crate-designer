@@ -69,16 +69,20 @@ export function designFromPart(part: PartMesh, inputs: DesignInputs): Design {
 
 /**
  * Geometry self-check (SPEC R24, E11): no two pieces overlap, and no cradle board or end stop
- * cuts into any part copy. Only the boards are tested against the mesh: they are the only
- * pieces that come near the part, and testing every triangle against every wall would cost
- * seconds on a 500,000-triangle file for nothing.
+ * cuts into the part. Only the boards near one copy per row are tested against the mesh: every
+ * copy in a row meets identical pockets by construction, the walls never come near the part, and
+ * testing every triangle against every piece for every copy would take minutes on a
+ * 500,000-triangle file at quantity 200.
  */
 function selfCheck(crate: Crate, frame: PartFrame, layout: Layout): void {
   const overlaps = overlappingPieces(crate.pieces);
   if (overlaps.length) throw new DesignError("E11", `${MESSAGES.E11} Pieces ${overlaps[0]![0]} and ${overlaps[0]![1]} overlap.`);
   const boards = crate.pieces.filter((p) => /^(BC|TC|EB)-/.test(p.id));
-  for (const o of layout.partOrigins) {
-    const hit = piecesHitByPart(boards, partInCrate(frame, o));
+  const margin = 10;
+  for (let row = 0; row < layout.rows; row++) {
+    const o = layout.partOrigins.find((p) => p.row === row)!;
+    const near = { x: o.x - margin, y: o.y - margin, z: o.z - margin, dx: frame.L + 2 * margin, dy: frame.W + 2 * margin, dz: frame.H + 2 * margin };
+    const hit = piecesHitByPart(boards, partInCrate(frame, o), [0, 0, 0], near);
     if (hit.length) throw new DesignError("E11", `${MESSAGES.E11} Piece ${hit[0]} cuts into the part.`);
   }
 }

@@ -1,5 +1,7 @@
 # Crate Designer
 
+By Shu Yang, for the Hadrian FDE builder interview, November 2026.
+
 **Working version: https://crate-designer.crate-designer.workers.dev** (no sign-in; drop a `.glb` from `samples/synthetic/`). Source: https://github.com/shu1513/crate-designer.
 
 A local web app that designs a wooden shipping crate, with straight-cut wooden cradles fitted to the part, for one or more copies of a machined part given as a GLB model. It produces a cut list, a fastener list, and numbered build steps with drawings that a shop-floor box builder can follow. No AI runs inside the app; every rule is deterministic and written down in [`SPEC.md`](SPEC.md). For a two-page plain-English explanation of how it works and why, see [`HOW-IT-WORKS.md`](HOW-IT-WORKS.md); for every number and rule with its source (standard, Hadrian practice, or my own pick), see [`DESIGN-BASIS.md`](DESIGN-BASIS.md).

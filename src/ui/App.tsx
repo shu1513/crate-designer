@@ -28,7 +28,7 @@ export function App() {
   const [recordId, setRecordId] = useState<string | null>(null);
   const [saveWarning, setSaveWarning] = useState<string | null>(null);
   const [problems, setProblems] = useState<ProblemMark[]>([]);
-  const [view, setView] = useState<"design" | "history">("design");
+  const [pastOpen, setPastOpen] = useState(false);
   const [readOnly, setReadOnly] = useState(false);
   const [viewKey, setViewKey] = useState(0); // bumping it re-frames the 3D view
   const [openError, setOpenError] = useState<string | null>(null);
@@ -70,7 +70,6 @@ export function App() {
       if (rev !== revision.current) return; // inputs changed meanwhile: stale result
       if (res.type === "designed") {
         setDesign(res.design);
-        setView("design");
         // Save the record (SPEC R25). The design stays usable if saving fails (E9).
         if (part) {
           try {
@@ -112,7 +111,8 @@ export function App() {
       setDesignError(null);
       setOpenError(null);
       setSaveWarning(null);
-      setView("design");
+      setPastOpen(false);
+      window.scrollTo({ top: 0 });
       if (andPrint) setTimeout(() => window.print(), 400); // let the page render first
     } catch (err) {
       setOpenError(`Could not open ${id}: ${(err as Error).message}`);
@@ -156,7 +156,7 @@ export function App() {
             <h2><span className="num">3</span> Print and build</h2>
             {design && recordId && <p className="status">Saved as <strong>{recordId}</strong>. This ID is printed on every page.</p>}
             {design && !recordId && saveWarning && <p className="warning">{saveWarning} The design still works and prints.</p>}
-            <button className="secondary" disabled={!design || view === "history"} onClick={() => window.print()} title={view === "history" ? "Go back to the design to print it" : undefined}>Print the build package</button>
+            <button className="secondary" disabled={!design} onClick={() => window.print()}>Print the build package</button>
 
             {readOnly && design && <p className="status">Showing saved design <strong>{recordId}</strong> exactly as it was saved: {openedFile}, {design.inputs.quantity} × {design.inputs.weightKg} kg. Drop a part file to start a new design.</p>}
           </section>
@@ -176,16 +176,15 @@ export function App() {
           {(design || partPositions) && <p className="muted size-line">Drag to turn, scroll to zoom.</p>}
         </main>
         <section className="column results-column">
-          <div className="view-switch no-print" role="tablist" aria-label="Current or past designs">
-            <button role="tab" aria-selected={view === "design"} className={view === "design" ? "active" : ""} onClick={() => setView("design")}>Current design</button>
-            <button role="tab" aria-selected={view === "history"} className={view === "history" ? "active" : ""} onClick={() => setView("history")}>Past designs</button>
-          </div>
-          {view === "history" && openError && <p className="error">{openError}</p>}
-          {view === "history" && <History onOpen={(id) => void openRecord(id)} onReprint={(id) => void openRecord(id, true)} onBack={() => setView("design")} />}
-          {view === "design" && designError && <div className="error-box"><strong>Cannot design a crate for this input</strong><p>{designError}</p></div>}
-          {view === "design" && !designError && !design && <p className="muted no-print">The overview, pieces to cut, screws, and build steps appear here after you press Design crate.</p>}
-          {view === "design" && saveWarning && <p className="warning no-print">{saveWarning}</p>}
-          {view === "design" && design && <Results design={design} recordId={recordId} fileName={readOnly ? openedFile : part?.fileName ?? null} problems={problems} onReportProblem={recordId ? reportProblem : undefined} />}
+          {designError && <div className="error-box"><strong>Cannot design a crate for this input</strong><p>{designError}</p></div>}
+          {!designError && !design && <p className="muted no-print">The overview, pieces to cut, screws, and build steps appear here after you press Design crate.</p>}
+          {saveWarning && <p className="warning no-print">{saveWarning}</p>}
+          {design && <Results design={design} recordId={recordId} fileName={readOnly ? openedFile : part?.fileName ?? null} problems={problems} onReportProblem={recordId ? reportProblem : undefined} />}
+          <details className="past-designs no-print" open={pastOpen} onToggle={(e) => setPastOpen((e.target as HTMLDetailsElement).open)}>
+            <summary>Past designs</summary>
+            {openError && <p className="error">{openError}</p>}
+            {pastOpen && <History onOpen={(id) => void openRecord(id)} onReprint={(id) => void openRecord(id, true)} />}
+          </details>
         </section>
       </div>
     </UnitContext.Provider>

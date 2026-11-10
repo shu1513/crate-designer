@@ -2,6 +2,10 @@
 
 A local web app that designs a wooden shipping crate, with straight-cut wooden cradles fitted to the part, for one or more copies of a machined part given as a GLB model. It produces a cut list, a fastener list, and numbered build steps with drawings that a shop-floor box builder can follow. No AI runs inside the app; every rule is deterministic and written down in [`SPEC.md`](SPEC.md).
 
+## Try it online
+
+A live copy runs at **https://crate-designer.crate-designer.workers.dev** (Cloudflare static hosting). Everything works there except record keeping: the online copy has no record service, so designs get no ID and there is no Past designs section; the screen says so. The samples to drop on it are in `samples/synthetic/` here. For the full app with records, launch it locally as below. Redeploy with `npm run deploy` (needs `npx wrangler login` once).
+
 ## Launch
 
 Requires Node.js 23.6 or newer (the service runs TypeScript directly and uses Node's built-in SQLite).

@@ -309,7 +309,7 @@ Each case shows one of these messages and no design (R21).
 - Browser without WebGL: 3D view shows "3D preview unavailable in this browser"; all other outputs still work.
 - Large quantity (e.g. 200): the app designs it. If L_out or W_out exceeds 2440 mm (a standard plywood sheet), the cut list notes "panel exceeds one sheet, join two sheets over a frame member" on that piece.
 - Concurrency and permissions: one local service, any number of browser tabs on the same machine. SQLite serializes writes; IDs are issued by the service so two tabs never get the same ID. No login; anyone at the station can read and write.
-- E9 Service unreachable or database write fails: the design still shows and prints, with a yellow warning "Could not save this design to history" and no ID on the printout (the ID comes from the service).
+- E9 Service unreachable or database write fails: the design still shows and prints, with a yellow warning and no ID on the printout (the ID comes from the service). When the service is absent altogether (the online demo on static hosting, or a stopped local service), the health check fails at load, the screen says "Designs are not saved here, so they get no ID…", saving is not attempted, and the Past designs section is hidden (user, 2026-11-10: a live copy for the interviewer).
 - Service stopped mid-session: next action shows E9; nothing already saved is lost.
 - Units toggle mid-design: numbers re-render; no recompute.
 - Input change after a design: design cleared, Print disabled (R23).

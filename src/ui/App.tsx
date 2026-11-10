@@ -32,6 +32,16 @@ export function App() {
   const [readOnly, setReadOnly] = useState(false);
   const [viewKey, setViewKey] = useState(0); // bumping it re-frames the 3D view
   const [openError, setOpenError] = useState<string | null>(null);
+  const [inputKey, setInputKey] = useState(0); // remounts the file box to clear it
+  function startNew() {
+    invalidate();
+    setPart(null);
+    setPartPositions(null);
+    setOpenedFile(null);
+    setPastOpen(false);
+    setInputKey((k) => k + 1);
+    window.scrollTo({ top: 0 });
+  }
   const [openedFile, setOpenedFile] = useState<string | null>(null);
   // Bumped on every input change; worker replies from an older revision are ignored (R23).
   const revision = useRef(0);
@@ -146,7 +156,7 @@ export function App() {
           </div>
           <section className={`step-section ${part ? "done" : "current"}`}>
             <h2><span className="num">1</span> Add the part file <span className="state">{part ? "done" : ""}</span></h2>
-            <PartInput onLoaded={onPartLoaded} onChanging={invalidate} />
+            <PartInput key={inputKey} onLoaded={onPartLoaded} onChanging={invalidate} />
           </section>
           <section className={`step-section ${!part ? "" : design ? "done" : "current"}`}>
             <h2><span className="num">2</span> How many, and how heavy <span className="state">{design ? "done" : ""}</span></h2>
@@ -158,7 +168,12 @@ export function App() {
             {design && !recordId && saveWarning && <p className="warning">{saveWarning} The design still works and prints.</p>}
             <button className="secondary" disabled={!design} onClick={() => window.print()}>Print the build package</button>
 
-            {readOnly && design && <p className="status">Showing saved design <strong>{recordId}</strong> exactly as it was saved: {openedFile}, {design.inputs.quantity} × {design.inputs.weightKg} kg. Drop a part file to start a new design.</p>}
+            {readOnly && design && (
+              <div className="saved-banner">
+                <p className="status">Showing saved design <strong>{recordId}</strong> exactly as it was saved: {openedFile}, {design.inputs.quantity} × {design.inputs.weightKg} kg.</p>
+                <button className="primary" onClick={startNew}>Start a new design</button>
+              </div>
+            )}
           </section>
           {healthError && <p className="warning">The local service is not answering ({healthError}). Designs still work but will not be saved to History.</p>}
           {health && <span className="sr-only">Service ok, version {health.version}</span>}
@@ -179,6 +194,12 @@ export function App() {
           {designError && <div className="error-box"><strong>Cannot design a crate for this input</strong><p>{designError}</p></div>}
           {!designError && !design && <p className="muted no-print">The overview, pieces to cut, screws, and build steps appear here after you press Design crate.</p>}
           {saveWarning && <p className="warning no-print">{saveWarning}</p>}
+          {readOnly && design && (
+            <div className="saved-banner top no-print">
+              <span>Saved design <strong>{recordId}</strong> ({openedFile}), shown exactly as it was saved.</span>
+              <button className="secondary" onClick={startNew}>Start a new design</button>
+            </div>
+          )}
           {design && <Results design={design} recordId={recordId} fileName={readOnly ? openedFile : part?.fileName ?? null} problems={problems} onReportProblem={recordId ? reportProblem : undefined} />}
           <details className="past-designs no-print" open={pastOpen} onToggle={(e) => setPastOpen((e.target as HTMLDetailsElement).open)}>
             <summary>Past designs</summary>

@@ -1,6 +1,6 @@
 import type { Box, Crate, Piece } from "./crate.ts";
 import { CLEARANCE } from "./constants.ts";
-import { screwToken, type Fastener } from "./fasteners.ts";
+import { screwToken, TWO_ROW_MIN_WIDTH, type Fastener } from "./fasteners.ts";
 import type { Layout } from "./layout.ts";
 import type { Restraint } from "./restraint.ts";
 import type { PartFrame } from "./orientation.ts";
@@ -88,7 +88,7 @@ export function buildSteps(ctx: Ctx): Step[] {
   const place = (pieces: Piece[]) => placed.push(...boxesOf(pieces));
   const w = crate.w;
   const c = restraintThickness(ctx);
-  const rowsText = ctx.crate.pieces.find((p) => p.id === "SC-V")!.width >= 82 ? "in two staggered rows" : "in one centred row";
+  const rowsText = ctx.crate.pieces.find((p) => p.id === "SC-V")!.width >= TWO_ROW_MIN_WIDTH ? "in two staggered rows" : "in one centred row";
 
   const bottom = byId(P, /^BC-/), top = byId(P, /^TC-/), stops = byId(P, /^EB-/);
   const bf = byId(P, /^BF-/), rails = byId(P, /^BF-(L|S)$/), joists = byId(P, /^BF-J$/), skids = byId(P, /^SK$/);
@@ -140,7 +140,7 @@ export function buildSteps(ctx: Ctx): Step[] {
   add({ text: `Screw each corner with two ${frameScrew} screws.`, pieceIds: ids(rails), screw: frameScrew, tool: "drill driver", highlight: boxesOf(rails), inPlace: [] });
   if (joists.length) {
     const jx = joists.flatMap((j) => j.placements.map((b, i) => ({ label: `BF-J ${i + 1}`, mm: b.x }))).sort((a, b) => a.mm - b.mm);
-    add({ text: "Fit BF-J between the long rails at the positions listed below, from the left end.", pieceIds: ids(joists), highlight: boxesOf(joists), inPlace: boxesOf(rails), positions: jx });
+    add({ text: "Fit BF-J between the long rails at the positions listed below, from either end.", pieceIds: ids(joists), highlight: boxesOf(joists), inPlace: boxesOf(rails), positions: jx, note: "Note: the joists are evenly spaced, so the base frame has no left or right." });
     add({ text: `Screw each joist end with two ${frameScrew} screws.`, pieceIds: ids(joists), screw: frameScrew, tool: "drill driver", highlight: boxesOf(joists), inPlace: boxesOf(rails) });
   }
   if (skids.length) {
@@ -167,7 +167,7 @@ export function buildSteps(ctx: Ctx): Step[] {
   add({ text: "Lay EC-V and EC-H flat on the bench in the end panel pattern at the positions listed below.", pieceIds: ids(ecPerimeter), highlight: ecPerimeter.flatMap(leftEndPanel), inPlace: [], positions: endPattern, panel: endPanel, note: "Note: the drawing shows the panel flat with the cleat side facing you; the plywood goes on top of the cleats." });
   if (ecm.length) {
     const pos = ecm.flatMap(leftEndPanel).map((b, i) => ({ label: `EC-M ${i + 1}`, mm: b.y })).sort((a, b) => a.mm - b.mm);
-    add({ text: "Lay EC-M between them at the positions listed below, from the panel's left end.", pieceIds: ["EC-M"], highlight: ecm.flatMap(leftEndPanel), inPlace: ecPerimeter.flatMap(leftEndPanel), positions: pos, panel: endPanel });
+    add({ text: "Lay EC-M between them at the positions listed below, from either end of the panel.", pieceIds: ["EC-M"], highlight: ecm.flatMap(leftEndPanel), inPlace: ecPerimeter.flatMap(leftEndPanel), positions: pos, panel: endPanel });
   }
   add({ text: "Set ES on the cleats, inside face up, flush with the outer cleat edges.", pieceIds: ["ES", ...ids(ec)], highlight: es.flatMap(leftEndPanel), inPlace: ec.flatMap(leftEndPanel), labels: ["inside face up"] });
   add({ text: "Mark the cleat centre lines on the face of ES, using the panel drawing.", pieceIds: ["ES", ...ids(ec)], tool: "tape and pencil", highlight: es.flatMap(leftEndPanel), inPlace: ec.flatMap(leftEndPanel), panel: endPanel });
@@ -185,7 +185,7 @@ export function buildSteps(ctx: Ctx): Step[] {
   add({ text: "Lay SC-V and SC-H flat on the bench in the side panel pattern at the positions listed below.", pieceIds: ids(scPerimeter), highlight: scPerimeter.flatMap(nearSidePanel), inPlace: [], positions: sidePattern, panel: sidePanel, note: "Note: the bottom SC-H sits one base-frame height up, leaving bare skin over the base rail." });
   if (scm.length) {
     const pos = scm.flatMap(nearSidePanel).map((b, i) => ({ label: `SC-M ${i + 1}`, mm: b.x + w })).sort((a, b) => a.mm - b.mm);
-    add({ text: "Lay SC-M between them at the positions listed below, from the panel's left end.", pieceIds: ["SC-M"], highlight: scm.flatMap(nearSidePanel), inPlace: scPerimeter.flatMap(nearSidePanel), positions: pos, panel: sidePanel });
+    add({ text: "Lay SC-M between them at the positions listed below, from either end of the panel.", pieceIds: ["SC-M"], highlight: scm.flatMap(nearSidePanel), inPlace: scPerimeter.flatMap(nearSidePanel), positions: pos, panel: sidePanel });
   }
   add({ text: "Set SS on the cleats, inside face up, flush with the outer cleat edges.", pieceIds: ["SS", ...ids(sc)], highlight: ss.flatMap(nearSidePanel), inPlace: sc.flatMap(nearSidePanel), labels: ["inside face up"] });
   add({ text: "Mark the cleat centre lines on the face of SS, using the panel drawing.", pieceIds: ["SS", ...ids(sc)], tool: "tape and pencil", highlight: ss.flatMap(nearSidePanel), inPlace: sc.flatMap(nearSidePanel), panel: sidePanel });
@@ -204,7 +204,7 @@ export function buildSteps(ctx: Ctx): Step[] {
   const lcPositions = [
     { label: "LC-L, from each side edge of LP", mm: w },
     { label: "LC-S, from each end of LP", mm: w },
-    ...byId(P, /^LC-M$/).flatMap((p) => p.placements.map((b, i) => ({ label: `LC-M ${i + 1}, from the left end`, mm: b.x + w }))),
+    ...byId(P, /^LC-M$/).flatMap((p) => p.placements.map((b, i) => ({ label: `LC-M ${i + 1}, from LP's L end`, mm: b.x + w }))),
   ];
   add({ text: "Lay LP flat, outside face up.", pieceIds: ["LP"], highlight: boxesOf(lp), inPlace: [], labels: ["outside face up"] });
   const lidPanel = { plane: "lid" as const, skin: boxesOf(lp)[0]!, cleats: lc.flatMap((p) => p.placements.map((b) => ({ id: p.id, b }))), title: "Lid, outside face" };

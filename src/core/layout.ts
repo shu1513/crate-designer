@@ -41,7 +41,7 @@ export function chooseLayout(size: PartSize, quantity: number, tier: Tier): Layo
   if (!best) throw new Error("no layout"); // unreachable for quantity ≥ 1
 
   // Cavity height: part plus floor and top clearance, but never so low that the
-  // top and bottom wall cleats would overlap (SPEC 5.4, Codex review item 10).
+  // top and bottom wall cleats would overlap (SPEC 5.4).
   const H_in = Math.max(c_floor + size.H + c_top, 2 * tier.d + 20);
 
   const natural = best.cols * (size.W + 2 * g_c) + (best.cols + 1) * web;
@@ -65,8 +65,8 @@ export function chooseLayout(size: PartSize, quantity: number, tier: Tier): Layo
 /**
  * Tier and layout together (SPEC R13): pick the tier from net load, lay out,
  * and if the cavity is wider than the promotion width, move up one tier and
- * lay out again with the thicker stock. Promotion cannot loop: W_in does not
- * depend on the tier.
+ * lay out again with the thicker stock. Promotion cannot loop: W_in depends on
+ * the tier only through the small minimum width, far below the promotion width.
  */
 export function planLayout(size: PartSize, quantity: number, netKg: number): { tier: Tier; layout: Layout; promoted: boolean } {
   const base = selectTier(netKg);

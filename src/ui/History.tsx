@@ -5,10 +5,11 @@ import { useUnits } from "./units.tsx";
 interface Props {
   onOpen: (id: string) => void;
   onReprint: (id: string) => void;
+  onBack: () => void;
 }
 
 /** Saved designs with part-name and date filters, export and import (SPEC R26, R28). */
-export function History({ onOpen, onReprint }: Props) {
+export function History({ onOpen, onReprint, onBack }: Props) {
   const u = useUnits();
   const [part, setPart] = useState("");
   const [from, setFrom] = useState("");
@@ -60,7 +61,9 @@ export function History({ onOpen, onReprint }: Props) {
 
   return (
     <section className="history">
-      <h2>History</h2>
+      <button className="link back" onClick={onBack}>← Back to the current design</button>
+      <h2>Past designs</h2>
+      <p className="muted">Every design is saved here. Open one to see it again, or Reprint it straight away.</p>
       <div className="filters">
         <label className="field">Part file<input value={part} onChange={(e) => setPart(e.target.value)} placeholder="e.g. PART-002" /></label>
         <label className="field">From<input type="date" value={from} onChange={(e) => setFrom(e.target.value)} /></label>

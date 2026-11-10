@@ -1,0 +1,7 @@
+// Online demo on Cloudflare Workers static hosting: the built app only, no record service.
+// Deploy with `npm run deploy` (needs `npx wrangler login` once). Records need the local service (npm start).
+{
+  "name": "crate-designer",
+  "compatibility_date": "2026-11-09",
+  "assets": { "directory": "./dist" }
+}

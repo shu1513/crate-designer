@@ -12,7 +12,10 @@ import { Preview3D } from "./Preview3D.tsx";
 import { Results } from "./Results.tsx";
 import { UnitContext } from "./units.tsx";
 
-type Health = { ok: boolean; version: string } | null;
+type Health = { ok: boolean; version: string; records: boolean } | null;
+
+/** Shown wherever the record service is missing: the hosted demo, or a local service that stopped (SPEC E9). */
+const NO_RECORDS = "Designs are not saved here, so they get no ID. This happens on the online demo, or when the local service has stopped. Run the app on your own computer with npm start to keep records.";
 
 /** A saved record that cannot be drawn (edited by hand, or from an older version) must not blank the whole page. */
 class ResultsBoundary extends Component<{ children: ReactNode }, { message: string | null }> {
@@ -67,10 +70,12 @@ export function App() {
 
   useEffect(() => {
     fetch("/api/health")
-      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
+      // A static host answers every path with the app's own HTML page; only a JSON answer is the service.
+      .then((r) => (r.ok && (r.headers.get("content-type") ?? "").includes("json") ? r.json() : Promise.reject(new Error(r.ok ? "no record service behind this page" : `HTTP ${r.status}`))))
       .then((data: Health) => setHealth(data))
       .catch((err: Error) => setHealthError(err.message));
   }, []);
+  const recordsOn = health !== null && healthError === null;
 
   // Any change to the part or its settings clears the design (SPEC R23); the unit toggle does not.
   function onPartLoaded(p: LoadedPart | null) {
@@ -99,7 +104,9 @@ export function App() {
       if (res.type === "designed") {
         setDesign(res.design);
         // Save the record (SPEC R25). The design stays usable if saving fails (E9).
-        if (part) {
+        if (!recordsOn) {
+          setSaveWarning(NO_RECORDS);
+        } else if (part) {
           try {
             const saved = await recordsApi.save(part.fileName, part.bytes, res.design);
             if (rev !== revision.current) return;
@@ -186,7 +193,7 @@ export function App() {
           <section className={`step-section ${design ? "current" : ""}`}>
             <h2><span className="num">3</span> Print and build</h2>
             {design && recordId && <p className="status">Saved as <strong>{recordId}</strong>. This ID is printed on every page.</p>}
-            {design && !recordId && saveWarning && <p className="warning">{saveWarning} The design still works and prints.</p>}
+            {design && !recordId && saveWarning && saveWarning !== NO_RECORDS && <p className="warning">{saveWarning} The design still works and prints.</p>}
             <button className="secondary" disabled={!design} onClick={() => window.print()}>Print the build package</button>
 
             {readOnly && design && (
@@ -196,7 +203,7 @@ export function App() {
               </div>
             )}
           </section>
-          {healthError && <p className="warning">The local service is not answering ({healthError}). Designs still work but will not be saved to History.</p>}
+          {healthError && <p className="warning">{NO_RECORDS} ({healthError})</p>}
           {health && <span className="sr-only">Service ok, version {health.version}</span>}
         </aside>
         <main className="column preview no-print">
@@ -214,7 +221,7 @@ export function App() {
         <section className="column results-column">
           {designError && <div className="error-box"><strong>Cannot design a crate for this input</strong><p>{designError}</p></div>}
           {!designError && !design && <p className="muted no-print">The overview, pieces to cut, screws, and build steps appear here after you press Design crate.</p>}
-          {saveWarning && <p className="warning no-print">{saveWarning}</p>}
+          {saveWarning && saveWarning !== NO_RECORDS && <p className="warning no-print">{saveWarning}</p>}
           {readOnly && design && (
             <div className="saved-banner top no-print">
               <span>Saved design <strong>{recordId}</strong> ({openedFile}), shown exactly as it was saved.</span>
@@ -226,11 +233,13 @@ export function App() {
               <Results design={design} recordId={recordId} fileName={readOnly ? openedFile : part?.fileName ?? null} problems={problems} onReportProblem={recordId ? reportProblem : undefined} />
             </ResultsBoundary>
           )}
-          <details className="past-designs no-print" open={pastOpen} onToggle={(e) => setPastOpen((e.target as HTMLDetailsElement).open)}>
-            <summary>Past designs</summary>
-            {openError && <p className="error">{openError}</p>}
-            {pastOpen && <History onOpen={(id) => void openRecord(id)} onReprint={(id) => void openRecord(id, true)} />}
-          </details>
+          {recordsOn && (
+            <details className="past-designs no-print" open={pastOpen} onToggle={(e) => setPastOpen((e.target as HTMLDetailsElement).open)}>
+              <summary>Past designs</summary>
+              {openError && <p className="error">{openError}</p>}
+              {pastOpen && <History onOpen={(id) => void openRecord(id)} onReprint={(id) => void openRecord(id, true)} />}
+            </details>
+          )}
         </section>
       </div>
     </UnitContext.Provider>

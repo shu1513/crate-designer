@@ -14,8 +14,17 @@ import { UnitContext } from "./units.tsx";
 
 type Health = { ok: boolean; version: string; records: boolean } | null;
 
-/** Shown wherever the record service is missing: the hosted demo, or a local service that stopped (SPEC E9). */
-const NO_RECORDS = "Designs are not saved here, so they get no ID. This happens on the online demo, or when the local service has stopped. Run the app on your own computer with npm start to keep records.";
+/**
+ * Why designs cannot be saved (SPEC E9). "demo": a static host answered the health check with a web
+ * page, so this is the online copy with no record service. "down": nothing answered, so the local
+ * service has stopped.
+ */
+const NO_RECORDS = {
+  demo: "This is the online demo: designs are not saved. To keep records, run the app on your own computer (see the README).",
+  down: "The record service is not running, so designs will not be saved. Start the app again with npm start.",
+} as const;
+/** The no-service notice is shown once at the top, so the save warning does not repeat it. */
+const isNoRecords = (s: string) => s === NO_RECORDS.demo || s === NO_RECORDS.down;
 
 /** A saved record that cannot be drawn (edited by hand, or from an older version) must not blank the whole page. */
 class ResultsBoundary extends Component<{ children: ReactNode }, { message: string | null }> {
@@ -29,7 +38,7 @@ class ResultsBoundary extends Component<{ children: ReactNode }, { message: stri
 
 export function App() {
   const [health, setHealth] = useState<Health>(null);
-  const [healthError, setHealthError] = useState<string | null>(null);
+  const [healthError, setHealthError] = useState<keyof typeof NO_RECORDS | null>(null);
   const [part, setPart] = useState<LoadedPart | null>(null);
   const [partPositions, setPartPositions] = useState<Float32Array | null>(null);
   const [design, setDesign] = useState<Design | null>(null);
@@ -70,10 +79,10 @@ export function App() {
 
   useEffect(() => {
     fetch("/api/health")
-      // A static host answers every path with the app's own HTML page; only a JSON answer is the service.
-      .then((r) => (r.ok && (r.headers.get("content-type") ?? "").includes("json") ? r.json() : Promise.reject(new Error(r.ok ? "no record service behind this page" : `HTTP ${r.status}`))))
+      // Only a JSON answer is the service; a static host answers with a page or a 404 (the online demo).
+      .then((r) => (r.ok && (r.headers.get("content-type") ?? "").includes("json") ? r.json() : Promise.reject(new Error("demo"))))
       .then((data: Health) => setHealth(data))
-      .catch((err: Error) => setHealthError(err.message));
+      .catch((err: Error) => setHealthError(err.message === "demo" ? "demo" : "down")); // a network error means nothing answered
   }, []);
   const recordsOn = health !== null && healthError === null;
 
@@ -105,7 +114,7 @@ export function App() {
         setDesign(res.design);
         // Save the record (SPEC R25). The design stays usable if saving fails (E9).
         if (!recordsOn) {
-          setSaveWarning(NO_RECORDS);
+          setSaveWarning(NO_RECORDS[healthError ?? "down"]);
         } else if (part) {
           try {
             const saved = await recordsApi.save(part.fileName, part.bytes, res.design);
@@ -193,7 +202,7 @@ export function App() {
           <section className={`step-section ${design ? "current" : ""}`}>
             <h2><span className="num">3</span> Print and build</h2>
             {design && recordId && <p className="status">Saved as <strong>{recordId}</strong>. This ID is printed on every page.</p>}
-            {design && !recordId && saveWarning && saveWarning !== NO_RECORDS && <p className="warning">{saveWarning} The design still works and prints.</p>}
+            {design && !recordId && saveWarning && !isNoRecords(saveWarning) && <p className="warning">{saveWarning} The design still works and prints.</p>}
             <button className="secondary" disabled={!design} onClick={() => window.print()}>Print the build package</button>
 
             {readOnly && design && (
@@ -203,7 +212,7 @@ export function App() {
               </div>
             )}
           </section>
-          {healthError && <p className="warning">{NO_RECORDS} ({healthError})</p>}
+          {healthError && <p className="warning">{NO_RECORDS[healthError]}</p>}
           {health && <span className="sr-only">Service ok, version {health.version}</span>}
         </aside>
         <main className="column preview no-print">
@@ -221,7 +230,7 @@ export function App() {
         <section className="column results-column">
           {designError && <div className="error-box"><strong>Cannot design a crate for this input</strong><p>{designError}</p></div>}
           {!designError && !design && <p className="muted no-print">The overview, pieces to cut, screws, and build steps appear here after you press Design crate.</p>}
-          {saveWarning && saveWarning !== NO_RECORDS && <p className="warning no-print">{saveWarning}</p>}
+          {saveWarning && !isNoRecords(saveWarning) && <p className="warning no-print">{saveWarning}</p>}
           {readOnly && design && (
             <div className="saved-banner top no-print">
               <span>Saved design <strong>{recordId}</strong> ({openedFile}), shown exactly as it was saved.</span>

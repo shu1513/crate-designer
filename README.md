@@ -4,7 +4,7 @@ A local web app that designs a wooden shipping crate, with straight-cut wooden c
 
 ## Try it online
 
-A live copy runs at **https://crate-designer.crate-designer.workers.dev** (Cloudflare static hosting). Everything works there except record keeping: the online copy has no record service, so designs get no ID and there is no Past designs section; the screen says so. The samples to drop on it are in `samples/synthetic/` here. For the full app with records, launch it locally as below. Redeploy with `npm run deploy` (needs `npx wrangler login` once).
+A live copy runs at **https://crate-designer.crate-designer.workers.dev** (Cloudflare static hosting). Everything works there except record keeping: the online copy has no record service, so designs are not saved and there is no Past designs section; a one-line notice says so. The samples to drop on it are in `samples/synthetic/` here. For the full app with records, launch it locally as below. Redeploy with `npm run deploy` (needs `npx wrangler login` once).
 
 ## Launch
 

@@ -21,10 +21,10 @@ Options: `PORT=9000 npm start` changes the port; `DB_PATH=/some/where.sqlite npm
 
 1. Drop a `.glb` file on the left panel (or click Choose file). The part's size appears. If it looks wrong, change **Model units** (the sample files are in meters) or **Up axis** (the samples are Z up; most glTF exports are Y up).
 2. Type the **quantity** going in the crate and the **weight of one part**.
-3. Press **Design crate**. The 3D view shows the crate with the parts inside; the right panel shows the summary, cut list, fasteners, and the build steps with a drawing per step. The design is saved with an ID like `CR-20261109-001`.
-4. Press **Print** for the paper package: summary, cut list, fasteners, cradle board drawings with pocket tables, then the steps two to a page.
+3. Press **Design crate**. The 3D view shows the crate with the parts inside; the right panel shows the overview, pieces to cut, screws, and the build steps with a drawing per step. The design is saved with an ID like `CR-20261109-001`.
+4. Press **Print the build package** for the paper: overview, pieces to cut, screws, cradle board drawings with pocket tables, then the steps two to a page, with the design ID on every sheet.
 5. **mm / in** switches every number on screen and on paper.
-6. **History** lists saved designs, filters by part file or date, reopens any of them exactly as saved, and exports or imports the whole set as one JSON file. While a saved design is open, each step has a *Report a problem* link that records a note against that step.
+6. **Past designs** (the switch at the top of the right panel) lists saved designs, filters by part file or date, reopens or reprints any of them exactly as saved, and exports or imports the whole set as one JSON file. While a saved design is open, each step has a *Report a problem* link that records a note against that step.
 
 ## Demo script
 
@@ -37,7 +37,7 @@ With the three sample parts in `samples/` (see `samples/README.md`):
 | PART-003 aluminum housing | 4 | 11.8 kg | Part turned 90° so the long side runs along the crate; three skids because the crate is wider than 914 mm |
 | any `.txt` renamed to `.glb` | | | Exact E1 message, no design |
 | PART-002 | 100 | 27 kg | E5: over 1800 kg, refused |
-| PART-001 | 1 | 21.5 kg, model units set to mm | E2: model is flat or empty in one direction |
+| PART-001 | 1 | 21.5 kg, with "The file's numbers are in" set to millimeters | E2: says what the part would measure and that the file is probably in meters |
 
 Toggle **mm / in** on any of these, print one, then open **History** and reopen it.
 

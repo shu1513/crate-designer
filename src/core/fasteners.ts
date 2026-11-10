@@ -24,7 +24,8 @@ export interface Fastener {
 const STOCK_LENGTHS = [25, 32, 38, 50, 63, 75, 100];
 const SKIN_PITCH = 100;
 const EDGE_PITCH = 300;
-const TWO_ROW_MIN_WIDTH = 82;
+/** Cleats at least this wide (19 + 44 + 19 mm) take two staggered screw rows (ASTM D6039 §7.1.10). */
+export const TWO_ROW_MIN_WIDTH = 82;
 
 /** Screw length for skin-to-cleat: t + c − 3 rounded down to a stock length, never under 25 (SPEC 5.5). */
 export function wallScrewLength(t: number, c: number): number {
@@ -95,8 +96,10 @@ export function countFasteners(crate: Crate, restraint: Restraint, tier: Tier): 
   const cornerLen = fitStock(c + t + d);
 
   const list: Fastener[] = [
-    { type: "wood screw", role: "wall", gauge: parseGauge(tier.wallScrew), size: tier.wallScrew, lengthMm: wallLen, count: wall, countAbout: about(wall), usedIn: wallUses, joinsMm: t + c },
-    { type: "wood screw", role: "frame", gauge: parseGauge(tier.frameScrew), size: tier.frameScrew, lengthMm: frameLen, count: frame, countAbout: about(frame), usedIn: frameUses, joinsMm: Math.min(2 * c, t + d) },
+    { type: "wood screw", role: "wall", gauge: parseGauge(tier.wallScrew), size: `${parseGauge(tier.wallScrew)} × ${wallLen} mm`, lengthMm: wallLen, count: wall, countAbout: about(wall), usedIn: wallUses, joinsMm: t + c },
+    // Frame screws run along a rail or joist into end grain (stack = c + the member's length) or through the lid into a
+    // top cleat (stack = t + d); the lid closure is the thinnest stack they must fit.
+    { type: "wood screw", role: "frame", gauge: parseGauge(tier.frameScrew), size: `${parseGauge(tier.frameScrew)} × ${frameLen} mm`, lengthMm: frameLen, count: frame, countAbout: about(frame), usedIn: frameUses, joinsMm: t + d },
     { type: "wood screw", role: "corner", gauge: "#10", size: `#10 × ${cornerLen} mm`, lengthMm: cornerLen, count: cornerScrews, countAbout: about(cornerScrews), usedIn: ["wall corners, side cleat through side skin into end cleat"], joinsMm: c + t + d },
     { type: "wood screw", role: "board", gauge: "#8", size: `#8 × ${boardLen} mm`, lengthMm: boardLen, count: boardScrews, countAbout: about(boardScrews), usedIn: ["cradle boards and end stops"], joinsMm: t + shortest },
   ];

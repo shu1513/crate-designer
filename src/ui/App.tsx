@@ -157,7 +157,7 @@ export function App() {
             {design && recordId && <p className="status">Saved as <strong>{recordId}</strong>. This ID is printed on every page.</p>}
             {design && !recordId && saveWarning && <p className="warning">{saveWarning} The design still works and prints.</p>}
             <button className="secondary" disabled={!design || view === "history"} onClick={() => window.print()} title={view === "history" ? "Go back to the design to print it" : undefined}>Print the build package</button>
-            <button className="secondary" onClick={() => setView(view === "history" ? "design" : "history")}>{view === "history" ? "Back to the design" : "Past designs (History)"}</button>
+
             {readOnly && design && <p className="status">Showing saved design <strong>{recordId}</strong> exactly as it was saved: {openedFile}, {design.inputs.quantity} × {design.inputs.weightKg} kg. Drop a part file to start a new design.</p>}
           </section>
           {healthError && <p className="warning">The local service is not answering ({healthError}). Designs still work but will not be saved to History.</p>}
@@ -176,8 +176,12 @@ export function App() {
           {(design || partPositions) && <p className="muted size-line">Drag to turn, scroll to zoom.</p>}
         </main>
         <section className="column results-column">
+          <div className="view-switch no-print" role="tablist" aria-label="Current or past designs">
+            <button role="tab" aria-selected={view === "design"} className={view === "design" ? "active" : ""} onClick={() => setView("design")}>Current design</button>
+            <button role="tab" aria-selected={view === "history"} className={view === "history" ? "active" : ""} onClick={() => setView("history")}>Past designs</button>
+          </div>
           {view === "history" && openError && <p className="error">{openError}</p>}
-          {view === "history" && <History onOpen={(id) => void openRecord(id)} onReprint={(id) => void openRecord(id, true)} />}
+          {view === "history" && <History onOpen={(id) => void openRecord(id)} onReprint={(id) => void openRecord(id, true)} onBack={() => setView("design")} />}
           {view === "design" && designError && <div className="error-box"><strong>Cannot design a crate for this input</strong><p>{designError}</p></div>}
           {view === "design" && !designError && !design && <p className="muted no-print">The overview, pieces to cut, screws, and build steps appear here after you press Design crate.</p>}
           {view === "design" && saveWarning && <p className="warning no-print">{saveWarning}</p>}

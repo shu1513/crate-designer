@@ -254,8 +254,8 @@ Wall thickness w = t + c. L_out = L_in + 2w. W_out = W_in + 2w. The base (frame 
 | EC-M | End cleat, intermediate vertical | 2 × (ceil(W_in / 600) − 1) | c × d × (H_in + t − 2d) |
 | LP | Lid panel | 1 | plywood t, L_out × W_out |
 | LC-L | Lid cleat long, flat | 2 | c × d × L_in, inset w from the lid edges so the band over the walls is free for closure screws |
-| LC-S | Lid cleat short, flat | 2 | c × d × (W_in − 2d), inset w, moved along the lid (away from its end) if a top cradle board would sit under it |
-| LC-M | Lid cleat middle, flat | ceil(L_out / 1200) − 1 | c × d × (W_in − 2d), moved along if it would sit over a top cradle board or another cross cleat |
+| LC-S | Lid cleat short, flat | 2, or fewer | c × d × (W_in − 2d), inset w, moved along the lid (away from its end) if a top cradle board would sit under it; left out when no clear position exists inside the inset band, because the top cradle boards already span and stiffen the lid |
+| LC-M | Lid cleat middle, flat | ceil(L_out / 1200) − 1, or fewer | c × d × (W_in − 2d), moved along if it would sit over a top cradle board or another cross cleat; left out when there is no room |
 | BC-n | Bottom cradle at station n | rows × n_st | c × h_b × W_in, with cols pockets |
 | TC-n | Top cradle at station n | rows × n_st | c × h_t × W_in, with cols pockets |
 | EB | End stop | rows + 1 | c × h_eb × W_in, h_eb per 5.4; a stop shared by two rows uses the larger of its two heights |

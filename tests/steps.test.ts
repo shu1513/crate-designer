@@ -53,7 +53,7 @@ describe("R18: build steps", () => {
     const groups = [...new Set(d.steps.map((s) => s.group))];
     expect(groups).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
     expect(d.steps.some((s) => s.pieceIds.includes("SK"))).toBe(false);
-    expect(d.steps.filter((s) => s.group === 4)).toHaveLength(2); // stand the rails, screw the corners
+    expect(d.steps.filter((s) => s.group === 4)).toHaveLength(3); // stand the rails, check the diagonals, screw the corners
     const withSkids = designFromPart(shaftLike(), inputs(1, 27));
     expect(withSkids.steps.some((s) => s.pieceIds.includes("SK") && s.screw)).toBe(true);
     expect(withSkids.steps.filter((s) => s.flip).length).toBeGreaterThanOrEqual(3);
@@ -110,7 +110,28 @@ describe("R18: build steps", () => {
     expect(shim).toBeDefined();
     expect(shim.text).toMatch(/^If a gap is over \{\{mm:6\}\}/);
     expect(renderText(shim.text, "in")).toContain("1/4 in");
-    expect(loading[0]!.text).toMatch(/^If the part has finished surfaces, line each pocket with felt no thicker than \{\{mm:1\}\}/);
+    expect(loading[0]!.text).toMatch(/^Set LP on the empty crate/); // dry fit of the lid before anything goes in
+    expect(loading[1]!.text).toMatch(/^If the work order says the part has finished surfaces, line each pocket with felt no thicker than \{\{mm:1\}\}/);
+    // The strip has a size and the felt a fixing, so the builder never has to guess materials.
+    expect(loading.find((s) => s.text.startsWith("If you lifted a part out, cut"))!.text).toMatch(/gap thick, pocket deep, \{\{mm:19\}\} long/);
+    expect(loading[1]!.note).toMatch(/glue it/);
+  });
+
+  it("novice-read fixes (T-R18b cold reads): screw heads sunk flush, start point for runs, diagonals, pilot holes, lid dry fit", () => {
+    const d = designFromPart(bracketLike(), inputs(1, 21.5));
+    const text = (id: string) => { const s = d.steps.find((x) => x.id === id)!; return `${s.text} ${s.note ?? ""} ${s.tool ?? ""}`; };
+    expect(text("1a")).toMatch(/start \{\{mm:50\}\} from each end/);
+    expect(text("1c")).toMatch(/top face up/);
+    const floorScrews = d.steps.find((s) => s.group === 3 && s.screw)!;
+    expect(`${floorScrews.text} ${floorScrews.note}`).toMatch(/centred in each web.*Sink every head flush/s);
+    const lidScrews = d.steps.find((s) => s.group === 9 && s.screw && s.pieceIds.includes("TC-1"))!;
+    expect(lidScrews.note).toMatch(/Sink every head flush/);
+    expect(d.steps.find((s) => s.group === 4 && s.text.startsWith("Check"))!.text).toMatch(/diagonals/);
+    for (const s of d.steps.filter((x) => x.group === 4 && x.screw)) expect(s.tool).toMatch(/pilot/);
+    expect(d.steps.find((s) => s.group === 8 && s.screw && s.pieceIds.includes("SC-V"))!.tool).toMatch(/pilot/);
+    expect(d.steps.find((s) => s.group === 8 && s.pieceIds.includes("BF-L"))!.note).toMatch(/\{\{mm:32\}\} up from the skin's bottom edge.*past the corner cleats/s);
+    expect(d.steps.find((s) => s.group === 8 && s.text.startsWith("Stand both end"))!.note).toMatch(/Clamp each end panel/);
+    expect(d.steps.find((s) => s.group === 9 && s.text.startsWith("Turn LP over so it rests on the boards"))!.note).toBeUndefined(); // both top boards are the same height
   });
 
   it("marks and station lines are measured from the left end and match the board positions", () => {
@@ -184,7 +205,7 @@ describe("R18, R11: drawings", () => {
     expect(d.steps.filter((s) => `${s.text} ${s.note ?? ""}`.includes("L end toward the F edge")).length).toBe(2);
     expect(d.steps.find((s) => s.group === 11 && !s.screw)!.text).toContain("F over F");
     // Board screws go into the solid webs, a stated distance past the face line; corner and lid screws get their line.
-    expect(d.steps.filter((s) => s.text.includes("one in each solid web")).length).toBe(2);
+    expect(d.steps.filter((s) => s.text.includes("one centred in each web")).length).toBe(2);
     expect(d.steps.find((s) => s.group === 8 && s.screw && s.text.includes("end edge"))).toBeDefined();
     expect(d.steps.find((s) => s.group === 11 && s.screw)!.text).toContain("from LP's edges");
     // The stepped shaft is wider at the collar end: a loading cue is given; a plain box gets "either way round".

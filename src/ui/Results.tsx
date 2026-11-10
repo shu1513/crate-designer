@@ -37,7 +37,7 @@ export function Results({ design, recordId, fileName = null, problems = [], onRe
         {tab === "summary" && <Summary design={design} recordId={recordId} problems={problems} />}
         {tab === "cutlist" && <><CutList design={design} /><h3>Cradle boards and their pockets</h3><Boards design={design} /></>}
         {tab === "fasteners" && <Fasteners design={design} />}
-        {tab === "steps" && <Steps design={design} problems={problems} onReportProblem={onReportProblem} checklist />}
+        {tab === "steps" && <Steps design={design} recordId={recordId} problems={problems} onReportProblem={onReportProblem} checklist />}
       </div>
       {/* Print package (SPEC R19): summary, cut list, fasteners, board drawings, steps. */}
       <div className="print-only print-package">
@@ -50,7 +50,7 @@ export function Results({ design, recordId, fileName = null, problems = [], onRe
         <h2>Cradle boards and their pockets</h2>
         <Boards design={design} />
         <h2>Build steps</h2>
-        <Steps design={design} problems={problems} />
+        <Steps design={design} recordId={recordId} problems={problems} />
       </div>
     </div>
   );
@@ -143,16 +143,22 @@ export function Boards({ design }: { design: Design }) {
   );
 }
 
-export function Steps({ design, problems = [], onReportProblem, checklist = false }: { design: Design; problems?: ProblemMark[]; onReportProblem?: (stepId: string) => void; checklist?: boolean }) {
+export function Steps({ design, recordId = null, problems = [], onReportProblem, checklist = false }: { design: Design; recordId?: string | null; problems?: ProblemMark[]; onReportProblem?: (stepId: string) => void; checklist?: boolean }) {
   const u = useUnits();
   const [done, setDone] = useState<Set<string>>(new Set());
   const labelFor = (b: Box) => design.crate.pieces.find((p) => p.placements.some((q) => q.x === b.x && q.y === b.y && q.z === b.z))?.id;
   const toggle = (id: string) => setDone((d) => { const n = new Set(d); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  const allDone = done.size === design.steps.length;
+  // The last thing the builder does, on screen and on paper: mark the crate so its record can be found later (R25).
+  const finish = `Write ${recordId ?? "the design ID"} on the lid with a marker, next to the L mark, so this design can be found again.`;
   let lastGroup = 0;
   return (
     <>
-    {checklist && (
+    {checklist && !allDone && (
       <p className="progress">{done.size} of {design.steps.length} done. Tick each step as you finish it.</p>
+    )}
+    {checklist && allDone && (
+      <div className="complete"><strong>All {design.steps.length} steps done. The crate is complete.</strong> {finish}</div>
     )}
     <ol className={checklist ? "steps checklist" : "steps"}>
       {design.steps.map((s) => {
@@ -179,6 +185,7 @@ export function Steps({ design, problems = [], onReportProblem, checklist = fals
         );
       })}
     </ol>
+    {!checklist && <p className="complete print-finish"><strong>Crate complete.</strong> {finish}</p>}
     </>
   );
 }

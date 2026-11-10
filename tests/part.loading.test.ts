@@ -10,6 +10,17 @@ const samplesPresent = existsSync(`${SAMPLES}/parts.json`);
 
 interface SampleEntry { id: string; model: string; dimensions_mm: [number, number, number] }
 
+/** The DesignError code a call throws, or "none". */
+function code(fn: () => unknown): string {
+  try {
+    fn();
+  } catch (e) {
+    if (e instanceof DesignError) return e.code;
+    throw e;
+  }
+  return "none";
+}
+
 describe("R1: GLB loading and bounds", () => {
   it.skipIf(!samplesPresent)("T-R1: sample parts measure within 1 mm of parts.json", () => {
     const list = JSON.parse(readFileSync(`${SAMPLES}/parts.json`, "utf8")) as { parts: SampleEntry[] };
@@ -51,6 +62,18 @@ describe("R1: GLB loading and bounds", () => {
     }
   });
 
+  it("reads triangle strips and fans as geometry (they count toward the size, not silently dropped)", () => {
+    for (const mode of ["strip", "fan"] as const) {
+      const glb = buildGlb([{ size: [100, 100, 100], center: [50, 50, 50] }, { size: [200, 50, 0], center: [1050, 25, 0], mode }]);
+      const part = loadPart(glb, { modelUnits: "mm", upAxis: "Z" });
+      expect(part.triangleCount).toBe(14); // 12 box triangles + 2 from the quad
+      expect(part.dims.L).toBeCloseTo(1150, 3);
+    }
+    // Points and lines are still ignored.
+    const points = patchGlbJson(buildGlb([{ size: [1, 1, 1] }]), (j) => { ((j["meshes"] as { primitives: { mode: number }[] }[])[0]!.primitives[0]!).mode = 0; });
+    expect(code(() => loadPart(points, { modelUnits: "m", upAxis: "Z" }))).toBe("E1");
+  });
+
   it("applies a rotation quaternion (90° about Z swaps X and Y extents)", () => {
     const s = Math.SQRT1_2;
     const part = loadPart(buildGlb([{ size: [100, 20, 10], rotation: [0, 0, s, s] }]), { modelUnits: "mm", upAxis: "Z" });
@@ -78,7 +101,7 @@ describe("R4: model units and up axis", () => {
     expect(parseGlb(buildGlb([{ size: [1, 1, 1] }])).generator).toBe("crate-designer tests");
   });
 
-  it("guesses the file's unit from its size: 1.53 → meters, 1530 → millimeters, 60 → inches", () => {
+  it("guesses the file's unit from its size: 1.53 → meters, 1530 → millimeters, 25 → inches", () => {
     expect(guessModelUnits(1.53)).toBe("m");
     expect(guessModelUnits(1530)).toBe("mm");
     expect(guessModelUnits(0.36)).toBe("m");
@@ -103,16 +126,6 @@ describe("R4: model units and up axis", () => {
 });
 
 describe("Section 6: errors and warnings", () => {
-  function code(fn: () => unknown): string {
-    try {
-      fn();
-    } catch (e) {
-      if (e instanceof DesignError) return e.code;
-      throw e;
-    }
-    return "none";
-  }
-
   it("E1: text renamed to .glb, truncated files, and bad magic are refused", () => {
     expect(code(() => loadPart(new TextEncoder().encode("hello world, not a model").buffer, { modelUnits: "m", upAxis: "Z" }))).toBe("E1");
     const good = buildGlb([{ size: [1, 1, 1] }]);

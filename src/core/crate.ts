@@ -70,7 +70,7 @@ export function buildCrate(layout: Layout, restraint: Restraint, tier: Tier, nee
   const W_out = W_in + 2 * w;
   const plywood: Material = { type: "plywood", t, label: tier.plywoodLabel };
   const lumber: Material = { type: "lumber", c, d, label: tier.stockLabel };
-  const boardStock: Material = { type: "board", c, label: `solid wood or plywood ${c} mm thick` };
+  const boardStock: Material = { type: "board", c, label: `solid wood or plywood {{mm:${c}}} thick` }; // unit token, rendered on screen (R20)
   const pieces: Piece[] = [];
   const add = (id: string, name: string, material: Material, length: number, width: number, thickness: number, placements: Box[], cutouts: Box[] = [], notes: string[] = []) => {
     pieces.push({ id, name, count: placements.length, material, length, width, thickness, placements, cutouts, notes });

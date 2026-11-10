@@ -30,23 +30,31 @@ describe("R25–R28: records", () => {
     expect(row.problems).toEqual([]);
   });
 
-  it("rejects bad save bodies, designs without the required shape, and oversized files", () => {
+  it("rejects bad save bodies, designs without the required shape, empty files, and files over 20 MB", () => {
     const store = new RecordStore(":memory:");
     expect(api(store, "POST", "/api/designs", { glbName: "x" }).status).toBe(400);
     expect(api(store, "POST", "/api/designs", { glbName: "x", glbBase64: base64, design: {} }).status).toBe(400);
     expect(api(store, "POST", "/api/designs", { glbName: "x", glbBase64: base64, design: { ...stored, frame: undefined } }).status).toBe(400); // missing render fields
+    expect(api(store, "POST", "/api/designs", { glbName: "x", glbBase64: base64, design: { ...stored, steps: [null] } }).status).toBe(400); // a null step must be refused, not crash
+    expect(api(store, "POST", "/api/designs", { glbName: "x", glbBase64: base64, design: { ...stored, crate: { ...stored.crate, pieces: [{ id: "X" }] } } }).status).toBe(400);
     expect(api(store, "POST", "/api/designs", { glbName: "x", glbBase64: "", design: stored }).status).toBe(400);
+    const huge = Buffer.alloc(20 * 1024 * 1024 + 1).toString("base64");
+    expect(api(store, "POST", "/api/designs", { glbName: "x", glbBase64: huge, design: stored })).toMatchObject({ status: 400, body: { error: expect.stringMatching(/20 MB/) } });
     expect(api(store, "GET", "/api/designs/CR-nope").status).toBe(404);
   });
 
-  it("import validates every entry and rolls back on a damaged file; a damaged row never breaks History", () => {
+  it("import checks every entry before writing anything; a damaged stored row is skipped by History instead of breaking it", () => {
     const store = new RecordStore(":memory:");
     const good = { id: "CR-20260101-001", createdAt: "2026-01-01T00:00:00.000Z", glbName: "a.glb", glbBase64: base64, designJson: JSON.stringify(stored), problems: [] };
     const bad = { ...good, id: "CR-20260101-002", designJson: "{not json" };
     expect(api(store, "POST", "/api/import", { format: "crate-designer-records", version: 1, designs: [good, bad] }).status).toBe(400);
-    expect((api(store, "GET", "/api/designs").body as unknown[]).length).toBe(0); // rolled back: the good one was not kept either
+    expect((api(store, "GET", "/api/designs").body as unknown[]).length).toBe(0); // nothing written: the good one was not kept either
     expect(api(store, "POST", "/api/import", { format: "crate-designer-records", version: 1, designs: [good] }).status).toBe(200);
     expect((api(store, "GET", "/api/designs").body as unknown[]).length).toBe(1);
+    // A row damaged on disk (edited by hand, or written by an older version) is left out of the list, and the rest still show.
+    store.save("b.glb", Buffer.from(glb), "{not json", new Date("2026-01-02T00:00:00Z"));
+    store.save("c.glb", Buffer.from(glb), JSON.stringify({ inputs: { quantity: 1 } }), new Date("2026-01-03T00:00:00Z"));
+    expect((api(store, "GET", "/api/designs").body as { id: string }[]).map((r) => r.id)).toEqual(["CR-20260101-001"]);
   });
 
   it("T-R26: history lists saved designs with id, date, part, quantity, outer size, and reopens one exactly as saved", () => {

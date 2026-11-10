@@ -86,10 +86,11 @@ export function countFasteners(crate: Crate, restraint: Restraint, tier: Tier): 
   const frameLen = parseLength(tier.frameScrew);
 
   // Board screws go into each board's solid webs (beside and between the pockets), which are full height,
-  // so the length only needs to fit the shortest board; about 45 mm of bite is plenty.
+  // so the length only needs to fit the shortest board; about 45 mm of bite is plenty. One screw per web
+  // on a cradle board, three on an end stop: exactly what the steps say.
   const boards = [...restraint.bottomBoards, ...restraint.topBoards, ...restraint.endStops];
   const shortest = Math.min(...boards.map((b) => b.height));
-  const boardScrews = boards.reduce((n, b) => n + Math.max(3, b.pockets.length + 1), 0);
+  const boardScrews = boards.reduce((n, b) => n + (b.kind === "end-stop" ? 3 : b.pockets.length + 1), 0);
   const boardLen = fitStock(t + Math.min(shortest, 45));
   // Corner screws: through the side cleat (c) and side skin (t) into the end cleat's d-wide face.
   const cornerScrews = 4 * perRun(wallHeight, SKIN_PITCH);

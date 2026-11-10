@@ -2,7 +2,7 @@ import { DesignError, MESSAGES } from "./errors.ts";
 
 /**
  * Minimal glTF 2.0 binary (.glb) reader: default scene, node transforms applied,
- * every triangle-list primitive merged into one flat triangle array. Pure
+ * every triangle primitive (lists, strips, fans) merged into one flat triangle array. Pure
  * TypeScript so it runs in the worker and in Node tests. Compressed or sparse
  * data is refused with E1 rather than guessed at (SPEC R1, E1).
  */
@@ -11,6 +11,8 @@ const MAGIC = 0x46546c67; // "glTF"
 const CHUNK_JSON = 0x4e4f534a;
 const CHUNK_BIN = 0x004e4942;
 const MODE_TRIANGLES = 4;
+const MODE_TRIANGLE_STRIP = 5;
+const MODE_TRIANGLE_FAN = 6;
 
 type Mat4 = Float64Array; // column-major 4x4
 
@@ -134,7 +136,8 @@ export function parseGlb(bytes: ArrayBuffer): GlbMesh {
 }
 
 function readPrimitive(json: GltfJson, bin: ArrayBuffer, prim: GltfPrimitive, world: Mat4): Float32Array {
-  if ((prim.mode ?? MODE_TRIANGLES) !== MODE_TRIANGLES) return new Float32Array(0); // points/lines are not solid geometry
+  const mode = prim.mode ?? MODE_TRIANGLES;
+  if (mode !== MODE_TRIANGLES && mode !== MODE_TRIANGLE_STRIP && mode !== MODE_TRIANGLE_FAN) return new Float32Array(0); // points/lines are not solid geometry
   if (prim.extensions && Object.keys(prim.extensions).some((e) => /draco|meshopt/i.test(e))) fail();
   if (prim.attributes.POSITION === undefined) fail();
   const positions = readAccessor(json, bin, prim.attributes.POSITION, 3, Float32Array);
@@ -145,6 +148,7 @@ function readPrimitive(json: GltfJson, bin: ArrayBuffer, prim: GltfPrimitive, wo
   } else {
     indices = Array.from({ length: vertexCount }, (_, i) => i);
   }
+  if (mode !== MODE_TRIANGLES) indices = triangulate(indices, mode);
   const triCount = Math.floor(indices.length / 3);
   const out = new Float32Array(triCount * 9);
   for (let t = 0; t < triCount; t++) {
@@ -159,6 +163,16 @@ function readPrimitive(json: GltfJson, bin: ArrayBuffer, prim: GltfPrimitive, wo
       out[o + 1] = world[1]! * x + world[5]! * y + world[9]! * z + world[13]!;
       out[o + 2] = world[2]! * x + world[6]! * y + world[10]! * z + world[14]!;
     }
+  }
+  return out;
+}
+
+/** Expands a triangle strip or fan into a plain triangle list (winding does not matter here). */
+function triangulate(indices: ArrayLike<number>, mode: number): number[] {
+  const out: number[] = [];
+  for (let i = 2; i < indices.length; i++) {
+    if (mode === MODE_TRIANGLE_STRIP) out.push(indices[i - 2]!, indices[i - 1]!, indices[i]!);
+    else out.push(indices[0]!, indices[i - 1]!, indices[i]!);
   }
   return out;
 }

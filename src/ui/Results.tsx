@@ -105,7 +105,7 @@ export function CutList({ design }: { design: Design }) {
       <tbody>
         {design.crate.pieces.map((p, i) => (
           <tr key={`${p.id}-${i}`}>
-            <td><strong>{p.id}</strong></td><td>{p.name}</td><td>{p.count}</td><td>{p.material.label}</td>
+            <td><strong>{p.id}</strong></td><td>{p.name}</td><td>{p.count}</td><td>{u.text(p.material.label)}</td>
             <td>{u.len(p.length)}</td><td>{u.len(p.width)}</td><td>{u.len(p.thickness)}</td>
             <td>{[...p.notes, p.cutouts.length ? `${p.cutouts.length} pocket${p.cutouts.length > 1 ? "s" : ""}, see board drawing` : ""].filter(Boolean).join("; ")}</td>
           </tr>

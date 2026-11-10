@@ -46,6 +46,8 @@ describe("5.4 slab sampling", () => {
     const padded = slabExtents(pads.positions, 488.5, 511.5, 490.5, 509.5)!;
     expect(padded.minZ).toBe(0); // extents still see the pads
     expect(padded.bearingWidth).toBe(0); // but the board faces sit under the floating body
+    expect(padded.seated).toBe(false); // so this slab is not a seat at all
+    expect(slabExtents(frame.positions, 490, 510)!.seated).toBe(true);
     // A vertex ring lying exactly on a board face counts for that face.
     const flush = mm(buildGlb([{ size: [100, 100, 60], center: [50, 0, 30] }]));
     expect(slabExtents(flush.positions, 80, 120, 100, 120)).not.toBeNull();
@@ -125,16 +127,35 @@ describe("R8: stations and pockets", () => {
   });
 
   it("candidates whose widest point is at the floor are skipped in favour of a usable neighbour", () => {
-    // A beam 60 wide with a short wider "roof" block whose widest points are its own flat bottom at z = 60:
-    // at that spot z_eq is NOT at the floor, so the test uses an inverted-T: wide flat plate on the floor only
-    // under part of the length. Where the plate is, z_eq = plate top > minZ (usable); elsewhere only the beam.
+    // A beam 60 wide standing on a paper-thin 300 mm wide flange (a flat quad at z = 0) under x 0..150.
+    // Where the flange is, the widest points are at the floor, so z_eq = minZ and the pocket would have no depth:
+    // those candidates (nominal 120 ± 60 → 60..160) must be skipped and station 1 lands just past the flange.
     const frame = mm(buildGlb([
       { size: [600, 60, 100], center: [300, 0, 50] },
-      { size: [200, 300, 10], center: [300, 0, 5] },  // wide plate under the middle 200..400
+      { size: [150, 300, 0], center: [75, 0, 0], mode: "fan" },
     ]));
     const stations = chooseStations(frame, selectTier(10));
     expect(stations).toHaveLength(2);
+    expect(stations[0]!.x).toBeGreaterThanOrEqual(170);
     for (const s of stations) expect(s.extents.z_eq - s.extents.minZ).toBeGreaterThan(0);
+  });
+
+  it("a slab that touches the part only in its 2 mm margin is not a seat: the station moves to real contact or E6 follows", () => {
+    // Body floating 50 mm up on two thin pads; pads exist only at x 100 and 300 (never under a board face).
+    const floating = mm(buildGlb([
+      { size: [400, 100, 60], center: [200, 0, 80] },
+      { size: [1.5, 100, 50], center: [100, 0, 25] },
+      { size: [1.5, 100, 50], center: [300, 0, 25] },
+    ]));
+    // Candidates for station 1 run 40..120 at 10 mm steps. The slab at 90 catches the pad (x 99.25..100.75) only in
+    // its margin, so its floor would be the pad's foot while the board faces hover under the body: not a seat.
+    // Every chosen station must be a real seat (on the body where there is no pad, or squarely on a pad).
+    const stations = chooseStations(floating, selectTier(10));
+    for (const s of stations) {
+      expect(s.extents.seated).toBe(true);
+      const onPad = Math.abs(s.x - 100) <= 9.5 / 2 || Math.abs(s.x - 300) <= 9.5 / 2;
+      expect(s.extents.minZ).toBe(onPad ? 0 : 50);
+    }
   });
 
   it("E6: a part with no geometry near any station is refused", () => {

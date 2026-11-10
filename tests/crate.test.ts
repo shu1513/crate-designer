@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CLEARANCE } from "../src/core/constants.ts";
+import { CLEARANCE, MIN_CLEAT_RUN } from "../src/core/constants.ts";
 import { DesignError } from "../src/core/errors.ts";
 import { boxesOverlap, meshIntersectsBox, overlappingPieces, piecesHitByPart } from "../src/core/checks.ts";
 import { solids, woodWeightKg } from "../src/core/crate.ts";
@@ -94,8 +94,28 @@ describe("R15, R17: crate pieces and sizes", () => {
     // 100 × 22 × 100 used to fail on a 0 mm end cleat; the cavity minimum now makes it buildable.
     const thin = mmPart(buildGlb([{ size: [100, 22, 100], center: [50, 0, 50] }]));
     const d = designFromPart(thin, inputs(1, 1));
-    expect(d.crate.pieces.find((p) => p.id === "EC-H")!.length).toBe(20);
+    expect(d.crate.pieces.find((p) => p.id === "EC-H")!.length).toBe(MIN_CLEAT_RUN);
     expect(overlappingPieces(d.crate.pieces)).toEqual([]);
+    // 60 × 40 × 30 used to give two overlapping short lid cleats; the minimum cavity length now keeps them apart,
+    // and the end stops follow the part into the middle of the widened cavity.
+    const tiny = designFromPart(mmPart(buildGlb([{ size: [60, 40, 30], center: [30, 0, 15] }])), inputs(1, 1));
+    expect(overlappingPieces(tiny.crate.pieces)).toEqual([]);
+    expect(tiny.crate.pieces.find((p) => p.id === "LC-S")!.length).toBe(MIN_CLEAT_RUN);
+    const stops = tiny.restraint.endStops.map((s) => s.x).sort((a, b) => a - b);
+    const o = tiny.layout.partOrigins[0]!;
+    expect(stops[0]! + tiny.tier.c + CLEARANCE.g_c).toBeCloseTo(o.x, 6);
+    expect(stops[1]).toBeCloseTo(o.x + 60 + CLEARANCE.g_c, 6);
+  });
+
+  it("E11: the design refuses itself when its own geometry check fails (simulated by a corrupt frame)", () => {
+    // A part whose declared length is 10 mm under its real geometry puts the far end stop through the part.
+    const part = mmPart(buildGlb([{ size: [360, 220, 258], center: [180, 0, 129] }]));
+    const shifted = { ...part, dims: { ...part.dims, L: part.dims.L - 10 } };
+    let caught: unknown;
+    try { designFromPart(shifted, inputs(1, 20)); } catch (e) { caught = e; }
+    expect(caught).toBeInstanceOf(DesignError);
+    expect((caught as DesignError).code).toBe("E11");
+    expect((caught as DesignError).message).toMatch(/failed its own geometry check/);
   });
 
   it("wood weight follows the density rule and pockets are subtracted", () => {
@@ -127,6 +147,9 @@ describe("R16: fasteners", () => {
       expect(f.count).toBeGreaterThan(0);
     }
     expect(d.fasteners.map((f) => f.size)).toEqual(["#8 × 25 mm", "#8 × 38 mm", "#10 × 75 mm", "#8 × 32 mm", "#10 × 100 mm"]); // corner screws bite the end cleat; board screws fit the 25 mm top boards; skid screws reach through the rail
+    // Board screws are exactly what the steps say: one per web on a cradle board, three per end stop.
+    const boards = [...d.restraint.bottomBoards, ...d.restraint.topBoards];
+    expect(d.fasteners.find((f) => f.role === "board")!.count).toBe(boards.reduce((n, b) => n + b.pockets.length + 1, 0) + 3 * d.restraint.endStops.length);
   });
 });
 

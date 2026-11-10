@@ -12,6 +12,16 @@ export interface TestMesh {
   indexType?: "u16" | "u32" | "none";
   /** Repeat the box's triangles (non-indexed) until at least this many triangles exist. */
   repeatTriangles?: number;
+  /** Instead of a box: a flat quad (size x × y at the centre's z) written as a 4-vertex triangle strip or fan. */
+  mode?: "strip" | "fan";
+}
+
+/** Four corners of a flat quad in strip order (zigzag) or fan order (around the ring). */
+function quadVertices(size: [number, number, number], center: [number, number, number], mode: "strip" | "fan"): number[] {
+  const [sx, sy] = [size[0] / 2, size[1] / 2];
+  const [cx, cy, cz] = center;
+  const a = [cx - sx, cy - sy, cz], b = [cx + sx, cy - sy, cz], c = [cx + sx, cy + sy, cz], d = [cx - sx, cy + sy, cz];
+  return mode === "strip" ? [...a, ...b, ...d, ...c] : [...a, ...b, ...c, ...d];
 }
 
 export function boxTriangles(size: [number, number, number], center: [number, number, number] = [0, 0, 0]): { positions: number[]; indices: number[] } {
@@ -52,7 +62,10 @@ export function buildGlb(meshes: TestMesh[], options: { scene?: number; extraSce
     const { positions, indices } = boxTriangles(m.size, m.center);
     let posArray = positions;
     let idx: number[] | null = indices;
-    if (m.indexType === "none" || m.repeatTriangles) {
+    if (m.mode) {
+      posArray = quadVertices(m.size, m.center ?? [0, 0, 0], m.mode);
+      idx = null;
+    } else if (m.indexType === "none" || m.repeatTriangles) {
       const flat = indices.flatMap((k) => positions.slice(k * 3, k * 3 + 3));
       const copies = m.repeatTriangles ? Math.ceil(m.repeatTriangles / (indices.length / 3)) : 1;
       posArray = new Array<number>(flat.length * copies);
@@ -70,7 +83,7 @@ export function buildGlb(meshes: TestMesh[], options: { scene?: number; extraSce
     }
     accessors.push({ bufferView: posView, componentType: 5126, count: pos.length / 3, type: "VEC3", min, max });
     const posAcc = accessors.length - 1;
-    const primitive: Record<string, unknown> = { attributes: { POSITION: posAcc }, mode: 4 };
+    const primitive: Record<string, unknown> = { attributes: { POSITION: posAcc }, mode: m.mode === "strip" ? 5 : m.mode === "fan" ? 6 : 4 };
     if (idx) {
       const u32 = m.indexType === "u32";
       const arr = u32 ? new Uint32Array(idx) : new Uint16Array(idx);

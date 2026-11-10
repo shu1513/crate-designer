@@ -4,15 +4,17 @@
  */
 export type DisplayUnit = "mm" | "in";
 
+/** Inches to the nearest 1/16; under one inch to the nearest 1/32, so a 1 mm limit does not read as 1/16 in (1.6 mm). */
 export function formatLength(mm: number, unit: DisplayUnit): string {
   if (unit === "mm") return `${Math.round(mm)} mm`;
   const inches = mm / 25.4;
   const whole = Math.floor(inches);
-  let sixteenths = Math.round((inches - whole) * 16);
+  const parts = inches < 1 ? 32 : 16;
+  let num = Math.round((inches - whole) * parts);
+  let den = parts;
   let w = whole;
-  if (sixteenths === 16) { w += 1; sixteenths = 0; }
-  if (sixteenths === 0) return `${w} in`;
-  let num = sixteenths, den = 16;
+  if (num === parts) { w += 1; num = 0; }
+  if (num === 0) return `${w} in`;
   while (num % 2 === 0) { num /= 2; den /= 2; }
   return w === 0 ? `${num}/${den} in` : `${w} ${num}/${den} in`;
 }

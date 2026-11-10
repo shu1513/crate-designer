@@ -16,3 +16,5 @@ data/
 *.sqlite-journal
 *.sqlite-wal
 *.sqlite-shm
+!samples/synthetic/
+!samples/synthetic/**

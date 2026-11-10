@@ -36,6 +36,8 @@ export interface Step {
   positions?: { label: string; mm: number }[];
   /** When set, the figure is this flat panel drawing instead of the crate view. */
   panel?: { plane: "side" | "end" | "lid" | "floor"; skin: Box; cleats: { id: string; b: Box }[]; title: string };
+  /** When set, the figure is this cradle board's drawing with its pocket table (pocket-cutting steps). */
+  board?: string;
 }
 
 const GROUPS: Record<number, string> = {
@@ -121,9 +123,10 @@ export function buildSteps(ctx: Ctx): Step[] {
     const same = boards.length > 1 ? ` (${boards.length} identical boards)` : "";
     const pieceIds = boards.map((b) => b.id);
     const highlight = boards.flatMap((b) => b.placements);
-    add({ text: `Mark each pocket on ${names}: its start from the L end, its width, and its depth.`, pieceIds, tool: "tape and pencil", highlight, inPlace: [], note: `Note: depth is measured from the open edge.${same}` });
-    add({ text: `Saw the two sides of each pocket in ${names} down to the marked depth.`, pieceIds, tool: "handsaw", highlight, inPlace: [] });
-    add({ text: `Chisel out the waste between the cuts in ${names}, flat to the depth line.`, pieceIds, tool: "chisel and mallet", highlight, inPlace: [], note: "Note: a jigsaw also works; the pocket floor must be flat because the part sits on it." });
+    const board = boards[0]!.id; // the figure for these steps is the board drawing with its pocket table
+    add({ text: `Mark each pocket on ${names}: its start from the L end, its width, and its depth.`, pieceIds, tool: "tape and pencil", highlight, inPlace: [], board, note: `Note: depth is measured from the open edge.${same}` });
+    add({ text: `Saw the two sides of each pocket in ${names} down to the marked depth.`, pieceIds, tool: "handsaw", highlight, inPlace: [], board });
+    add({ text: `Chisel out the waste between the cuts in ${names}, flat to the depth line.`, pieceIds, tool: "chisel and mallet", highlight, inPlace: [], board, note: "Note: a jigsaw also works; the pocket floor must be flat because the part sits on it." });
   }
 
   begin(3);

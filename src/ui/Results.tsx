@@ -2,10 +2,11 @@ import { useState } from "react";
 import type { Design } from "../core/design.ts";
 import { boardSvg, panelSvg, stepSvg } from "../core/drawings.ts";
 import type { Box } from "../core/crate.ts";
+import type { Step } from "../core/steps.ts";
 import { useUnits } from "./units.tsx";
 import type { ProblemMark } from "./api.ts";
 
-type Tab = "summary" | "cutlist" | "fasteners" | "steps";
+type Tab = "summary" | "cutlist" | "boards" | "fasteners" | "steps";
 
 interface ResultsProps {
   design: Design;
@@ -27,15 +28,16 @@ export function Results({ design, recordId, fileName = null, problems = [], onRe
         <button className="link" onClick={() => window.print()}>Print the build package</button>
       </div>
       <nav className="tabs no-print">
-        {(["summary", "cutlist", "fasteners", "steps"] as Tab[]).map((t) => (
+        {(["summary", "cutlist", "boards", "fasteners", "steps"] as Tab[]).map((t) => (
           <button key={t} className={t === tab ? "active" : ""} onClick={() => setTab(t)}>
-            {t === "summary" ? "Overview" : t === "cutlist" ? "Pieces to cut" : t === "fasteners" ? "Screws" : "Build steps"}
+            {t === "summary" ? "Overview" : t === "cutlist" ? "Pieces to cut" : t === "boards" ? "Cradle boards" : t === "fasteners" ? "Screws" : "Build steps"}
           </button>
         ))}
       </nav>
       <div className="tab-body no-print">
         {tab === "summary" && <Summary design={design} recordId={recordId} problems={problems} />}
-        {tab === "cutlist" && <><CutList design={design} /><h3>Cradle boards and their pockets</h3><Boards design={design} /></>}
+        {tab === "cutlist" && <CutList design={design} />}
+        {tab === "boards" && <Boards design={design} />}
         {tab === "fasteners" && <Fasteners design={design} />}
         {tab === "steps" && <Steps design={design} recordId={recordId} problems={problems} onReportProblem={onReportProblem} checklist />}
       </div>
@@ -107,7 +109,7 @@ export function CutList({ design }: { design: Design }) {
           <tr key={`${p.id}-${i}`}>
             <td><strong>{p.id}</strong></td><td>{p.name}</td><td>{p.count}</td><td>{u.text(p.material.label)}</td>
             <td>{u.len(p.length)}</td><td>{u.len(p.width)}</td><td>{u.len(p.thickness)}</td>
-            <td>{[...p.notes, p.cutouts.length ? `${p.cutouts.length} pocket${p.cutouts.length > 1 ? "s" : ""}, see board drawing` : ""].filter(Boolean).join("; ")}</td>
+            <td>{[...p.notes, p.cutouts.length ? `${p.cutouts.length} pocket${p.cutouts.length > 1 ? "s" : ""}, see Cradle boards` : ""].filter(Boolean).join("; ")}</td>
           </tr>
         ))}
       </tbody>
@@ -138,9 +140,18 @@ export function Boards({ design }: { design: Design }) {
   const boards = design.crate.pieces.filter((p) => p.cutouts.length > 0);
   return (
     <div className="boards">
+      <p className="muted">One drawing per cradle board, seen from the crate's end, with the pocket table to mark and cut it. The same drawing appears in the pocket-cutting steps.</p>
       {boards.map((b) => <div key={b.id} className="board" dangerouslySetInnerHTML={{ __html: boardSvg(b, u.unit) }} />)}
     </div>
   );
+}
+
+/** A step's figure: the cradle board drawing while its pockets are cut, a flat panel drawing while a panel is laid out, else the crate view. */
+function figureFor(s: Step, design: Design, unit: "mm" | "in", labelFor: (b: Box) => string | undefined): string {
+  const board = s.board ? design.crate.pieces.find((p) => p.id === s.board) : undefined;
+  if (board) return boardSvg(board, unit);
+  if (s.panel) return panelSvg(s.panel.skin, s.panel.cleats, s.panel.plane, unit, s.panel.title);
+  return stepSvg(s, labelFor);
 }
 
 export function Steps({ design, recordId = null, problems = [], onReportProblem, checklist = false }: { design: Design; recordId?: string | null; problems?: ProblemMark[]; onReportProblem?: (stepId: string) => void; checklist?: boolean }) {
@@ -179,7 +190,7 @@ export function Steps({ design, recordId = null, problems = [], onReportProblem,
                 {problems.filter((p) => p.stepId === s.id).map((p) => <div key={p.recordedAt} className="warning">Problem reported: {p.note || "(no note)"}</div>)}
                 {onReportProblem && <button className="link no-print" onClick={() => onReportProblem(s.id)}>Report a problem with this step</button>}
               </div>
-              <div className="step-figure" dangerouslySetInnerHTML={{ __html: s.panel ? panelSvg(s.panel.skin, s.panel.cleats, s.panel.plane, u.unit, s.panel.title) : stepSvg(s, labelFor) }} />
+              <div className="step-figure" dangerouslySetInnerHTML={{ __html: figureFor(s, design, u.unit, labelFor) }} />
             </div>
           </li>
         );

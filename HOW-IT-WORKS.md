@@ -1,6 +1,6 @@
 # How the Crate Designer works, and why it is built this way
 
-A two-page explanation in plain English. The full rules are in `SPEC.md`; how to run it is in `README.md`.
+A two-page explanation in plain English. The full rules are in `SPEC.md`; every number with its source is in `DESIGN-BASIS.md`; how to run it is in `README.md`.
 
 ## What it does
 

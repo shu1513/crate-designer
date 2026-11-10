@@ -101,21 +101,27 @@ export function buildSteps(ctx: Ctx): Step[] {
 
   begin(1);
   add({ text: "Lay out all pieces by ID using the cut list.", pieceIds: ids(P), highlight: boxesOf(P), inPlace: [], note: "Note: every piece carries its ID in the drawings." });
-  add({ text: "Mark one end of FP and one end of LP with the letter L.", pieceIds: ["FP", "LP"], tool: "pencil", highlight: [...boxesOf(fp), ...boxesOf(lp)], inPlace: [], note: `Note: every "from the L end" below is measured from that mark. The other two edges of a panel are its side edges. The lid goes on with its L over the floor's L.${layout.rows > 1 ? " Board IDs read row.board: BC-2.1 is the first bottom board of the second row from the L end." : ""}` });
+  add({ text: "Mark one end of FP and one end of LP with the letter L, on both faces.", pieceIds: ["FP", "LP"], tool: "pencil", highlight: [...boxesOf(fp), ...boxesOf(lp)], inPlace: [], note: `Note: every "from the L end" below is measured from that mark. The lid goes on with its L over the floor's L.${layout.rows > 1 ? " Board IDs read row.board: BC-2.1 is the first bottom board of the second row from the L end." : ""}` });
+  add({ text: "Mark each panel's near side edge with F on both faces, with its L end on your left.", pieceIds: ["FP", "LP"], tool: "pencil", highlight: [...boxesOf(fp), ...boxesOf(lp)], inPlace: [], note: "Note: F is the front. Every cradle board goes in with its own L end toward the F edge, so an off-centre pocket lands where the part is." });
+  add({ text: "Mark the left end of every cradle board and end stop with the letter L.", pieceIds: [...ids(bottom), ...ids(top), ...ids(stops)], tool: "pencil", highlight: [...boxesOf(bottom), ...boxesOf(top), ...boxesOf(stops)], inPlace: [], note: "Note: the pocket tables measure from this end." });
 
   begin(2);
-  // Boards with the same height and pocket table are cut the same way: one set of steps for the group.
-  const groups = new Map<string, Piece[]>();
-  for (const b of [...bottom, ...top]) {
-    const key = `${b.width}|${b.cutouts.map((c) => `${(c.y - b.placements[0]!.y).toFixed(1)}:${c.dy.toFixed(1)}:${c.dz.toFixed(1)}:${c.z.toFixed(1)}`).join(",")}`;
-    groups.set(key, [...(groups.get(key) ?? []), b]);
+  // Boards with the same height and pocket table are cut the same way: one set of steps per run of
+  // consecutive identical boards (a range name like "BC-1.1 to BC-2.2" must never skip a different board).
+  const order = [...bottom, ...top];
+  const keyOf = (b: Piece) => `${b.width}|${b.cutouts.map((c) => `${(c.y - b.placements[0]!.y).toFixed(1)}:${c.dy.toFixed(1)}:${c.dz.toFixed(1)}:${c.z.toFixed(1)}`).join(",")}`;
+  const runs: Piece[][] = [];
+  for (const b of order) {
+    const last = runs.at(-1);
+    if (last && keyOf(last[0]!) === keyOf(b)) last.push(b);
+    else runs.push([b]);
   }
-  for (const boards of groups.values()) {
+  for (const boards of runs) {
     const names = boards.length === 1 ? boards[0]!.id : boards.length === 2 ? `${boards[0]!.id} and ${boards[1]!.id}` : `${boards[0]!.id} to ${boards.at(-1)!.id}`;
     const same = boards.length > 1 ? ` (${boards.length} identical boards)` : "";
     const pieceIds = boards.map((b) => b.id);
     const highlight = boards.flatMap((b) => b.placements);
-    add({ text: `Mark each pocket on ${names}: its start from either end, its width, and its depth.`, pieceIds, tool: "tape and pencil", highlight, inPlace: [], note: `Note: depth is measured from the open edge. The pockets are placed symmetrically, so either end of the board can be the table's left end.${same}` });
+    add({ text: `Mark each pocket on ${names}: its start from the L end, its width, and its depth.`, pieceIds, tool: "tape and pencil", highlight, inPlace: [], note: `Note: depth is measured from the open edge.${same}` });
     add({ text: `Saw the two sides of each pocket in ${names} down to the marked depth.`, pieceIds, tool: "handsaw", highlight, inPlace: [] });
     add({ text: `Chisel out the waste between the cuts in ${names}, flat to the depth line.`, pieceIds, tool: "chisel and mallet", highlight, inPlace: [], note: "Note: a jigsaw also works; the pocket floor must be flat because the part sits on it." });
   }
@@ -124,7 +130,7 @@ export function buildSteps(ctx: Ctx): Step[] {
   const floorBoards = [...bottom, ...stops];
   const floorLines = floorBoards.map((b) => ({ label: b.id, mm: b.placements[0]!.x })).sort((a, b) => a.mm - b.mm);
   add({ text: "Mark lines across both faces of FP at the positions listed below, from its L end.", pieceIds: ["FP"], tool: "tape and pencil", highlight: boxesOf(fp), inPlace: [], labels: ["top face"], positions: floorLines, note: `Note: each line marks the face of the board nearest the L end; the board's wood lies on the far side of its line, ${mm(c)} thick. The lines on the underside guide the screws after turning over.` });
-  add({ text: "Place each bottom cradle board and end stop with its left face on its line, pockets up.", pieceIds: ["FP", ...ids(floorBoards)], highlight: boxesOf(floorBoards), inPlace: boxesOf(fp) });
+  add({ text: "Place each bottom cradle board and end stop on its line, pockets up, its L end toward the F edge.", pieceIds: ["FP", ...ids(floorBoards)], highlight: boxesOf(floorBoards), inPlace: boxesOf(fp), note: "Note: the board's face nearest FP's L end sits on the line." });
   add({ text: "Clamp each board to FP.", pieceIds: ["FP", ...ids(floorBoards)], tool: "clamps", highlight: boxesOf(floorBoards), inPlace: boxesOf(fp) });
   add({ text: "Turn FP over with the boards clamped to it.", pieceIds: ["FP"], flip: true, highlight: boxesOf(fp), inPlace: boxesOf(floorBoards) });
   add({ text: `Drive ${boardScrew} screws through FP into each board, ${mm(c / 2)} past its line, one in each solid web.`, pieceIds: ["FP", ...ids(floorBoards)], screw: boardScrew, tool: "drill driver", highlight: boxesOf(floorBoards), inPlace: boxesOf(fp), note: "Note: a web is the full-height wood beside or between the pockets; never screw under a pocket. End stops get three screws spaced evenly." });
@@ -209,7 +215,7 @@ export function buildSteps(ctx: Ctx): Step[] {
   add({ text: `Screw through LP into each cleat every ${mm(100)} with ${wall} screws, ${rowsText}.`, pieceIds: ["LP", ...ids(lc)], screw: wall, tool: "drill driver", highlight: boxesOf(lc), inPlace: boxesOf(lp) });
   const topLines = top.map((b) => ({ label: b.id, mm: b.placements[0]!.x + w })).sort((a, b) => a.mm - b.mm);
   add({ text: "Mark lines across both faces of LP at the positions listed below, from its L end.", pieceIds: ["LP"], tool: "tape and pencil", highlight: boxesOf(lp), inPlace: boxesOf(lc), labels: ["inside face up"], positions: topLines, note: `Note: each line marks the face of the board nearest the L end; the board lies on the far side, ${mm(c)} thick. The lines on the outside guide the screws after turning over.` });
-  add({ text: `Place each top cradle board with its L-side face on its line, pockets up, ${mm(w)} in from each side edge.`, pieceIds: ["LP", ...ids(top)], highlight: boxesOf(top), inPlace: [...boxesOf(lp), ...boxesOf(lc)] });
+  add({ text: `Place each top cradle board on its line, pockets up, L end toward F, ${mm(w)} in from each side edge.`, pieceIds: ["LP", ...ids(top)], highlight: boxesOf(top), inPlace: [...boxesOf(lp), ...boxesOf(lc)], note: "Note: the board's face nearest LP's L end sits on the line; its L end goes toward the F edge." });
   add({ text: "Clamp each board to LP.", pieceIds: ["LP", ...ids(top)], tool: "clamps", highlight: boxesOf(top), inPlace: [...boxesOf(lp), ...boxesOf(lc)] });
   add({ text: "Turn LP over so it rests on the boards.", pieceIds: ["LP", ...ids(top)], flip: true, highlight: boxesOf(lp), inPlace: [...boxesOf(top), ...boxesOf(lc)], note: "Note: put blocks under the lid cleats if the boards differ in height." });
   add({ text: `Drive ${boardScrew} screws through LP into each board, ${mm(c / 2)} past its line, one in each solid web.`, pieceIds: ["LP", ...ids(top)], screw: boardScrew, tool: "drill driver", highlight: boxesOf(top), inPlace: [...boxesOf(lp), ...boxesOf(lc)], note: "Note: a web is the full-height wood beside or between the pockets; never screw into a pocket. Keep clear of the lid cleats." });
@@ -234,7 +240,7 @@ export function buildSteps(ctx: Ctx): Step[] {
   add({ text: "If you lifted a part out, lower it back in the same way round.", pieceIds: ids(bottom), highlight: [], parts: partBoxes, inPlace: [...placed], note: "Note: top pockets cannot be checked after closing; the pocket table is their check." });
 
   begin(11);
-  add({ text: "Lower the lid, L mark over the floor's L mark, so the top cradles sit over the parts.", pieceIds: ["LP", ...ids(top), ...ids(lc)], highlight: [...boxesOf(lp), ...boxesOf(top), ...boxesOf(lc)], parts: partBoxes, inPlace: [...placed] });
+  add({ text: "Lower the lid, L over the floor's L and F over F, so the top cradles sit over the parts.", pieceIds: ["LP", ...ids(top), ...ids(lc)], highlight: [...boxesOf(lp), ...boxesOf(top), ...boxesOf(lc)], parts: partBoxes, inPlace: [...placed] });
   add({ text: `Screw the lid into the top wall cleats every ${mm(100)} with ${frameScrew} screws, ${mm(c / 2)} from LP's edges.`, pieceIds: ["LP", "SC-H", "EC-H"], screw: frameScrew, tool: "drill driver", highlight: boxesOf(lp), inPlace: [...placed, ...boxesOf(top), ...boxesOf(lc)], note: "Note: the top wall cleat is one cleat thickness wide, just inside the lid's edge; keep to that line." });
   return steps;
 }

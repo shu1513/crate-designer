@@ -54,7 +54,7 @@ describe("R18: build steps", () => {
     const withSkids = designFromPart(shaftLike(), inputs(1, 27));
     expect(withSkids.steps.some((s) => s.pieceIds.includes("SK") && s.screw)).toBe(true);
     expect(withSkids.steps.filter((s) => s.flip).length).toBeGreaterThanOrEqual(3);
-    expect(d.steps.map((s) => s.id).slice(0, 4)).toEqual(["1a", "1b", "2a", "2b"]);
+    expect(d.steps.map((s) => s.id).slice(0, 5)).toEqual(["1a", "1b", "1c", "1d", "2a"]);
   });
 
   it("T-R15: every piece ID appears in at least one step", () => {
@@ -139,13 +139,18 @@ describe("R18, R11: drawings", () => {
   it("the L-mark convention, screw spacing, and one-way loading are stated", () => {
     const d = designFromPart(shaftLike(), inputs(1, 27));
     expect(d.steps.find((s) => s.group === 1 && s.text.includes("letter L") && s.pieceIds.includes("FP"))).toBeDefined();
+    expect(d.steps.find((s) => s.group === 1 && s.text.includes("letter L") && s.pieceIds.includes("BC-1"))).toBeDefined();
+    expect(d.steps.find((s) => s.group === 1 && s.text.includes("with F"))).toBeDefined();
+    // Boards go in L end toward the F edge, so an off-centre pocket lands where the part is.
+    expect(d.steps.filter((s) => `${s.text} ${s.note ?? ""}`.includes("L end toward the F edge")).length).toBe(2);
+    expect(d.steps.find((s) => s.group === 11 && !s.screw)!.text).toContain("F over F");
     // Board screws go into the solid webs, a stated distance past the face line; corner and lid screws get their line.
     expect(d.steps.filter((s) => s.text.includes("one in each solid web")).length).toBe(2);
     expect(d.steps.find((s) => s.group === 8 && s.screw && s.text.includes("end edge"))).toBeDefined();
     expect(d.steps.find((s) => s.group === 11 && s.screw)!.text).toContain("from LP's edges");
     // The stepped shaft is wider at the collar end: a loading cue is given; a plain box gets "either way round".
     expect(d.steps.find((s) => s.text.startsWith("Lower each part"))!.text).toMatch(/wide end toward the (L|far) end/);
-    expect(d.steps.find((s) => s.group === 11 && !s.screw)!.text).toContain("L mark over the floor's L mark");
+    expect(d.steps.find((s) => s.group === 11 && !s.screw)!.text).toContain("L over the floor's L");
     const uniform = designFromPart(bracketLike(), inputs(1, 21.5));
     expect(uniform.steps.find((s) => s.text.startsWith("Lower each part"))!.note).toMatch(/either way round/);
     // Pockets are cut in three actions: mark, saw the sides, chisel the waste.

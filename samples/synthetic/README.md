@@ -15,4 +15,4 @@ Made of boxes, in millimetres, Z up, with a parts.json that says so. Drop parts.
 - SYN-011-tiny-pin.glb: Tiny pin 40×12×12, 0.03 kg, suggested 100. shorter than two cradle boards: refused with a plain message.
 - SYN-012-huge-beam.glb: Huge beam 4500×200×200, 420 kg, suggested 1. longer than a plywood sheet: cut list notes the join.
 - SYN-013-stepped-shaft-Y-up.glb: the stepped shaft written Y up (drop it WITHOUT parts.json: the app should guess Y up from... it cannot, this file's writer is unknown, so switch "Which way is up" to Y if it looks tipped).
-- SYN-014-stepped-shaft-inches.glb: the stepped shaft in inches (drop WITHOUT parts.json: the app should guess inches from the size).
+- SYN-014-stepped-shaft-inches.glb: the stepped shaft in inches (drop WITHOUT parts.json: its largest raw extent is 47.2, which the app reads as 47 mm, a plausible small part, so the size guess says millimetres; open "Only if the part looks wrong" and choose inches, and the part becomes 1200 mm long. Only raw sizes between 20 and 30 are guessed as inches).

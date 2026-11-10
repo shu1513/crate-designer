@@ -96,7 +96,11 @@ describe("R18: build steps", () => {
     const stub = mmPart(buildGlb([{ size: [1000, 88, 88], center: [500, 0, 44] }, { size: [30, 100, 100], center: [1015, 0, 50] }]));
     const stubbed = designFromPart(stub, inputs(1, 20));
     expect(stubbed.restraint.endStops.map((s) => s.height)).toEqual([25 + 88, 25 + 100]);
-    expect(stubbed.steps.find((s) => s.text.startsWith("Lower each part"))!.note).toMatch(/one way round/);
+    const lowerStub = stubbed.steps.find((s) => s.text.startsWith("Lower each part"))!;
+    expect(lowerStub.text).toMatch(/its taller end toward the far end/);
+    expect(lowerStub.note).toMatch(/end stops are cut/);
+    // Whatever the cue, the lid step tells the builder how a wrong way round shows up and what to do.
+    expect(stubbed.steps.find((s) => s.group === 11 && !s.screw)!.note).toMatch(/lift the lid and turn that part end for end/);
   });
 
   it("T-R12: the part-loading group states the 6 mm gap threshold as an If step with a unit token", () => {

@@ -210,11 +210,12 @@ export function buildSteps(ctx: Ctx): Step[] {
   add({ text: "Clamp each board to LP.", pieceIds: ["LP", ...ids(top)], tool: "clamps", highlight: boxesOf(top), inPlace: boxesOf(lp) });
   add({ text: "Turn LP over so it rests on the boards.", pieceIds: ["LP", ...ids(top)], flip: true, highlight: boxesOf(lp), inPlace: boxesOf(top), note: "Note: put blocks under the shorter boards if they differ in height, so LP lies flat." });
   add({ text: `Drive ${boardScrew} screws through LP into each board, ${mm(c / 2)} past its line, one in each solid web.`, pieceIds: ["LP", ...ids(top)], screw: boardScrew, tool: "drill driver", highlight: boxesOf(top), inPlace: boxesOf(lp), note: "Note: a web is the full-height wood beside or between the pockets; never screw into a pocket." });
+  // Cross cleats are listed one by one: a short cleat may have moved along to clear a top cradle board.
   const lcPositions = [
     { label: "LC-L, from each side edge of LP", mm: w },
-    { label: "LC-S, from each end of LP", mm: w },
+    ...byId(P, /^LC-S$/).flatMap((p) => p.placements.map((b, i) => ({ label: `LC-S ${i + 1}, from LP's L end`, mm: b.x + w }))),
     ...byId(P, /^LC-M$/).flatMap((p) => p.placements.map((b, i) => ({ label: `LC-M ${i + 1}, from LP's L end`, mm: b.x + w }))),
-  ];
+  ].sort((a, b) => a.mm - b.mm);
   const lidPanel = { plane: "lid" as const, skin: boxesOf(lp)[0]!, cleats: lc.flatMap((p) => p.placements.map((b) => ({ id: p.id, b }))), title: "Lid, outside face" };
   add({ text: `Place ${list(ids(lc))} on LP's outside face at the positions listed below.`, pieceIds: ["LP", ...ids(lc)], highlight: boxesOf(lc), inPlace: [...boxesOf(lp), ...boxesOf(top)], positions: lcPositions, panel: lidPanel, labels: ["outside face up"] });
   add({ text: "Clamp the cleats to LP.", pieceIds: ["LP", ...ids(lc)], tool: "clamps", highlight: boxesOf(lc), inPlace: [...boxesOf(lp), ...boxesOf(top)] });
@@ -230,17 +231,20 @@ export function buildSteps(ctx: Ctx): Step[] {
   const first = st[0]!.extents, last = st[st.length - 1]!.extents;
   const widthDiff = (last.maxY - last.minY) - (first.maxY - first.minY);
   const heightDiff = last.maxZ - first.maxZ;
+  // End stops are cut to the two end faces, so a stub at one end is a visible cue too (the first and last stop of a row).
+  const endDiff = ctx.restraint.endStops.at(-1)!.height - ctx.restraint.endStops[0]!.height;
   const oneWay = !fitsReversed(frame, st, c);
-  const visibleCue = Math.abs(widthDiff) > 1 || Math.abs(heightDiff) > 1;
-  const cue = Math.abs(heightDiff) > Math.abs(widthDiff)
-    ? (heightDiff > 0 ? "its tall end toward the far end" : "its tall end toward the L end")
-    : (widthDiff > 0 ? "its wide end toward the far end" : "its wide end toward the L end");
+  const far = (v: number) => (v > 0 ? "toward the far end" : "toward the L end");
+  const cue = Math.abs(heightDiff) > 1 && Math.abs(heightDiff) >= Math.abs(widthDiff) ? { text: `its tall end ${far(heightDiff)}`, why: "the other way the lid will not close" }
+    : Math.abs(widthDiff) > 1 ? { text: `its wide end ${far(widthDiff)}`, why: "the other way the lid will not close" }
+    : Math.abs(endDiff) > 1 ? { text: `its taller end ${far(endDiff)}`, why: "the end stops are cut to match its two ends" }
+    : null;
   add({ text: `If the part has finished surfaces, line each pocket with felt no thicker than ${mm(1)}.`, pieceIds: ids(bottom), highlight: boxesOf(bottom), inPlace: [...placed], note: `Note: bottom and top linings together must stay under the ${mm(CLEARANCE.g_c)} of clearance above the part.` });
   add({
-    text: oneWay && visibleCue ? `Lower each part into its pockets with ${cue} of the crate.` : oneWay ? "Lower each part into its pockets until it sits fully down in every pocket." : "Lower each part into its pockets.",
+    text: oneWay && cue ? `Lower each part into its pockets with ${cue.text} of the crate.` : oneWay ? "Lower each part into its pockets until it sits fully down in every pocket." : "Lower each part into its pockets.",
     pieceIds: ids(bottom), highlight: [], parts: partBoxes, inPlace: [...placed],
-    note: oneWay && visibleCue ? "Note: the part fits one way round only; the other way the lid will not close."
-      : oneWay ? "Note: the part fits one way round only; if it does not sit fully down, turn it end for end."
+    note: oneWay && cue ? `Note: the part fits one way round only; ${cue.why}.`
+      : oneWay ? "Note: the part fits one way round only; if it does not sit fully down, or the lid will not sit flat later, turn it end for end."
       : "Note: the part is the same at both ends, so either way round is fine.",
   });
   add({ text: "Measure the gap on both sides of each bottom pocket.", pieceIds: ids(bottom), tool: "tape", highlight: boxesOf(bottom), parts: partBoxes, inPlace: [...placed] });
@@ -250,7 +254,7 @@ export function buildSteps(ctx: Ctx): Step[] {
   add({ text: "If you lifted a part out, lower it back in the same way round.", pieceIds: ids(bottom), highlight: [], parts: partBoxes, inPlace: [...placed], note: "Note: top pockets cannot be checked after closing; the pocket table is their check." });
 
   begin(11);
-  add({ text: "Lower the lid, L over the floor's L and F over F, so the top cradles sit over the parts.", pieceIds: ["LP", ...ids(top), ...ids(lc)], highlight: [...boxesOf(lp), ...boxesOf(top), ...boxesOf(lc)], parts: partBoxes, inPlace: [...placed] });
+  add({ text: "Lower the lid, L over the floor's L and F over F, so the top cradles sit over the parts.", pieceIds: ["LP", ...ids(top), ...ids(lc)], highlight: [...boxesOf(lp), ...boxesOf(top), ...boxesOf(lc)], parts: partBoxes, inPlace: [...placed], note: "Note: the lid must sit flat on the walls all round. If it does not, a part is the wrong way round: lift the lid and turn that part end for end." });
   add({ text: `Screw the lid into the top wall cleats every ${mm(100)} with ${frameScrew} screws, ${mm(c / 2)} from LP's edges.`, pieceIds: ["LP", "SC-H", "EC-H"], screw: frameScrew, tool: "drill driver", highlight: boxesOf(lp), inPlace: [...placed, ...boxesOf(top), ...boxesOf(lc)], note: "Note: the top wall cleat is one cleat thickness wide, just inside the lid's edge; keep to that line." });
   return steps;
 }

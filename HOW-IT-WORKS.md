@@ -36,7 +36,11 @@ No cardboard, no foam, no metal hardware, no shipping-size limits, no mixed part
 
 ## How it was built
 
-Spec first: the brief and three rounds of questions to the interviewer became `SPEC.md` (36 recorded decisions, 30 testable requirements, each with a named test). Then one module per pull request, eleven in all, each reviewed by a second AI (Codex gpt-6-astra) and, for the core modules, by CodeRabbit, with every finding judged and either fixed or declined in writing. Finally a whole-repository audit, read line by line by both a second AI and me, fixed in one pull request with three more review rounds. Ninety-four tests run in two seconds. The AI session logs are in `logs/`.
+Spec first: the brief and three rounds of questions to the interviewer became `SPEC.md` (36 recorded decisions, 30 testable requirements, each with a named test). Then one module per pull request, eleven in all, each reviewed by a second AI (Codex gpt-6-astra) and, for the core modules, by CodeRabbit, with every finding judged and either fixed or declined in writing. Finally a whole-repository audit, read line by line by both a second AI and me, fixed in one pull request with three more review rounds, and two cold reads of the printed instructions by AI readers playing a box builder. Ninety-five tests run in two seconds. The AI session logs are in `logs/`.
+
+## What it cost
+
+Claude Code's own cost meter for the main build session, which covers the spec, all twelve pull requests, the reviews I ran, the audit, and the hand-off documents, reads **$140.38** at Anthropic list prices (Claude Fable 5.1). The transcripts show where it went: about 188 million tokens of cached context re-read across 400-odd model turns (at $0.25 per million, roughly $47), 2.6 million tokens written to cache (about $33), and 0.9 million output tokens (about $45); fresh uncached input was negligible. The earlier short sessions for setup and sample inspection add a few dollars more. The Codex (gpt-6-astra) review and research runs ran on a separate Codex subscription and are not metered in their logs. CodeRabbit's included reviews were free. For scale: a careful engineer would take two to three weeks to build and document this by hand; the AI build took about two working days of one person's time plus the spend above.
 
 ## What I would do next
 

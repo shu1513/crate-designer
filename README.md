@@ -24,7 +24,7 @@ Options: `PORT=9000 npm start` changes the port; `DB_PATH=/some/where.sqlite npm
 3. Press **Design crate**. The 3D view shows the crate with the parts inside; the right panel shows the overview, pieces to cut, screws, and the build steps with a drawing per step. The design is saved with an ID like `CR-20261109-001`.
 4. Press **Print the build package** for the paper: overview, pieces to cut, screws, cradle board drawings with pocket tables, then the steps two to a page, with the design ID on every sheet.
 5. **mm / in** switches every number on screen and on paper.
-6. **Past designs** (the switch at the top of the right panel) lists saved designs, filters by part file or date, reopens or reprints any of them exactly as saved, and exports or imports the whole set as one JSON file. While a saved design is open, each step has a *Report a problem* link that records a note against that step.
+6. **Past designs** (the section under the current design on the right) lists saved designs, filters by part file or date, reopens or reprints any of them exactly as saved, and exports or imports the whole set as one JSON file. While a saved design is open, each step has a *Report a problem* link that records a note against that step.
 
 ## Demo script
 

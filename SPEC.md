@@ -1,6 +1,6 @@
 # Shipping Crate Designer — SPEC
 
-Status: v1.11, 2026-11-18 (adds the part check before cutting: R30, D37, A10, Q8, T-R30, task 16; fixes the printed page header covering content: D38). v1.10, 2026-11-10: spec frozen for the build; construction details refined during implementation and recorded as D33 (base inside the skins), D34 (every screw drivable through the face that is up), and D36 (whole-repository audit). All fifteen build-plan tasks are implemented in the repository with tests named after their requirements; see README.md for launch and the demo script.
+Status: v1.11, 2026-11-18 (adds the part check before cutting: R30, D37, A10, Q8, T-R30, task 16; fixes the printed page header covering content: D38). v1.10, 2026-11-10: spec frozen for the build; construction details refined during implementation and recorded as D33 (base inside the skins), D34 (every screw drivable through the face that is up), and D36 (whole-repository audit). All sixteen build-plan tasks are implemented in the repository with tests named after their requirements; see README.md for launch and the demo script.
 Sources: Hadrian "Shipping Crate Designer (FDE Builder Interview)" PDF, `Sample Parts/` folder (3 GLB files, `parts.json`, `README.md`), interviewer notes relayed 2026-11-09 (three rounds), and public crate-design references listed under Assumptions.
 
 ## 1. Problem

@@ -104,9 +104,11 @@ ul.plain { margin: 0; padding-left: 16px; }
   body { min-width: 0; }
   .layout { display: block; padding: 0; }
   .column { border: none; padding: 0; }
-  /* Repeats at the top of every printed page so each sheet carries the design ID (R25). */
-  .print-header { position: fixed; top: 0; left: 0; right: 0; font-size: 11px; border-bottom: 1px solid #000; padding-bottom: 3px; background: #fff; }
-  .print-package { padding-top: 22px; }
+  /* The package is one table whose header row holds the design ID line: the browser repeats a table
+     header on every printed page (R25) and keeps the content below it, so nothing is covered (R19). */
+  .print-frame { width: 100%; table-layout: fixed; border-spacing: 0; font-size: 1rem; }
+  .print-frame > thead > tr > td, .print-frame > tbody > tr > td { padding: 0; }
+  .print-header { font-size: 11px; border-bottom: 1px solid #000; padding-bottom: 3px; margin-bottom: 8px; }
   @page { margin: 14mm 12mm 12mm; }
   h2 { page-break-before: always; font-size: 16px; }
   section h2:first-child { page-break-before: auto; }

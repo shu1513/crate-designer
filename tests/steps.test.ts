@@ -46,6 +46,10 @@ describe("R30: part check before cutting", () => {
     const post = designFromPart(mmPart(buildGlb([{ size: [100, 100, 500], center: [0, 0, 250] }])), inputs(1, 10));
     expect(post.frame.rules).toContain("laid-down");
     expect(renderText(partCheckText(post.frame), "mm")).toContain("500 mm long, 100 mm wide, and 100 mm high");
+    // A size is rounded once, by the unit formatter: 100.7 mm is 3 15/16 in, not 101 mm → 4 in.
+    const odd = designFromPart(mmPart(buildGlb([{ size: [500, 100.7, 80], center: [250, 0, 40] }])), inputs(1, 10));
+    expect(renderText(partCheckText(odd.frame), "in")).toContain("19 11/16 in long, 3 15/16 in wide, and 3 1/8 in high");
+    expect(renderText(partCheckText(odd.frame), "mm")).toContain("500 mm long, 101 mm wide, and 80 mm high");
   });
 });
 

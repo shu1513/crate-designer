@@ -7,7 +7,8 @@ import { CLEARANCE } from "./constants.ts";
  * The limit is g_c, the smallest designed clearance.
  */
 export function partCheckText(frame: { L: number; W: number; H: number }): string {
-  const mm = (v: number) => `{{mm:${Math.round(v)}}}`;
+  // Not rounded to whole millimetres here: the formatter rounds once, so 100.7 mm reads 3 15/16 in, not 4 in.
+  const mm = (v: number) => `{{mm:${v.toFixed(2)}}}`;
   return `Measure the real part: lying the way it will sit in the crate (long side along the crate), it must be ${mm(frame.L)} long, ${mm(frame.W)} wide, and ${mm(frame.H)} high. `
-    + `If any of these is off by more than ${mm(CLEARANCE.g_c)}, do not cut: the 3D file does not match the part, so the crate would not fit it.`;
+    + `If any of these is off by more than {{mm:${CLEARANCE.g_c}}}, do not cut: the 3D file does not match the part, so the crate would not fit it.`;
 }

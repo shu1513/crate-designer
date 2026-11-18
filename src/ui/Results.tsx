@@ -3,6 +3,7 @@ import type { Design } from "../core/design.ts";
 import { boardSvg, panelSvg, stepSvg } from "../core/drawings.ts";
 import type { Box } from "../core/crate.ts";
 import type { Step } from "../core/steps.ts";
+import { partCheckText } from "../core/partCheck.ts";
 import { useUnits } from "./units.tsx";
 import type { ProblemMark } from "./api.ts";
 
@@ -43,16 +44,21 @@ export function Results({ design, recordId, fileName = null, problems = [], onRe
       </div>
       {/* Print package (SPEC R19): summary, cut list, fasteners, board drawings, steps. */}
       <div className="print-only print-package">
-        <PrintHeader design={design} recordId={recordId} fileName={fileName} />
-        <Summary design={design} recordId={recordId} problems={problems} />
-        <h2>Pieces to cut</h2>
-        <CutList design={design} />
-        <h2>Screws</h2>
-        <Fasteners design={design} />
-        <h2>Cradle boards and their pockets</h2>
-        <Boards design={design} />
-        <h2>Build steps</h2>
-        <Steps design={design} recordId={recordId} problems={problems} />
+        {/* One table: its header row repeats on every printed page (R25) without covering the content (R19). */}
+        <table className="print-frame">
+          <thead><tr><td><PrintHeader design={design} recordId={recordId} fileName={fileName} /></td></tr></thead>
+          <tbody><tr><td>
+            <Summary design={design} recordId={recordId} problems={problems} />
+            <h2>Pieces to cut</h2>
+            <CutList design={design} />
+            <h2>Screws</h2>
+            <Fasteners design={design} />
+            <h2>Cradle boards and their pockets</h2>
+            <Boards design={design} />
+            <h2>Build steps</h2>
+            <Steps design={design} recordId={recordId} problems={problems} />
+          </td></tr></tbody>
+        </table>
       </div>
     </div>
   );
@@ -74,6 +80,8 @@ export function Summary({ design, recordId, problems = [] }: { design: Design; r
   return (
     <section>
       <h2>Overview</h2>
+      {/* R30: first on screen and on page 1, because the pieces are cut before build step 1. */}
+      <p className="warning"><strong>Before you cut any wood.</strong> {u.text(partCheckText(design.frame))}</p>
       <table className="kv">
         <tbody>
           <tr><th>Design ID</th><td>{recordId ?? "not saved"}</td></tr>

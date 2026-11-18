@@ -4,6 +4,8 @@ import { formatLength, formatWeight, renderText, wordCount } from "../src/core/f
 import { designFromPart } from "../src/core/design.ts";
 import { loadPart } from "../src/core/part.ts";
 import { STEP_VERBS, stepTextProblems } from "../src/core/steps.ts";
+import { partCheckText } from "../src/core/partCheck.ts";
+import { CLEARANCE } from "../src/core/constants.ts";
 import { buildGlb } from "./helpers/glb.ts";
 import { loadSample, samplesPresent } from "./helpers/samples.ts";
 
@@ -25,6 +27,25 @@ describe("R20: formatting", () => {
     expect(formatWeight(27, "in")).toBe("59.5 lb");
     expect(renderText("Mark lines at {{mm:306}} and {{mm:765}}.", "in")).toBe("Mark lines at 12 1/16 in and 30 1/8 in.");
     expect(wordCount("Screw FP down every {{mm:300}} with #8 × 25 mm screws.")).toBe(11);
+  });
+});
+
+describe("R30: part check before cutting", () => {
+  it("T-R30: states the part's size as it sits in the crate and the g_c limit, in the chosen unit", () => {
+    const shaft = designFromPart(shaftLike(), inputs(1, 27));
+    const text = partCheckText(shaft.frame);
+    const inMm = renderText(text, "mm");
+    expect(inMm).toContain("1530 mm long, 172 mm wide, and 172 mm high");
+    expect(inMm).toContain("more than 3 mm, do not cut");
+    const inInches = renderText(text, "in");
+    expect(inInches).toContain("60 1/4 in long, 6 3/4 in wide, and 6 3/4 in high");
+    expect(inInches).toContain("more than 1/8 in, do not cut");
+    expect(inMm).not.toContain("{{"); // every number is a unit token (R20)
+    expect(text).toContain(`more than {{mm:${CLEARANCE.g_c}}}`); // the limit is the smallest designed clearance
+    // A part modelled standing up is laid on its side (5.2): the check gives the sizes as it lies in the crate.
+    const post = designFromPart(mmPart(buildGlb([{ size: [100, 100, 500], center: [0, 0, 250] }])), inputs(1, 10));
+    expect(post.frame.rules).toContain("laid-down");
+    expect(renderText(partCheckText(post.frame), "mm")).toContain("500 mm long, 100 mm wide, and 100 mm high");
   });
 });
 

@@ -79,6 +79,7 @@ The documents were read in full during the spec phase (see the Claude Code trans
 | Every screw driven through the face that is up | | Codex review of module 6 (D34): panels built cleats-down, floor and lid turned over before their boards are fastened. | pick |
 | L and F marks on floor, lid, and every board | | Codex review of module 6: a lopsided part puts a pocket off-centre, so boards need an orientation reference (CodeRabbit finding, PR #6). | pick |
 | Positions as a small table, measured from a named edge | | Keeps the sentence under 20 words however many boards there are (5.6). | pick |
+| Part check before cutting: measure the real part against the file's length, width, and height | limit 3 mm | The limit equals the smallest designed clearance (3 mm above the part): a real part more than 3 mm taller than the file would touch the top pocket. First item on page 1, because the wood is cut before build step 1 (R30, D37). | pick |
 | The printout ends with the design ID to write on the lid | | Traceability (R25); the user's question about completion (2026-11-10). | Hadrian |
 
 ## Records

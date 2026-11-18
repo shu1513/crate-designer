@@ -30,6 +30,7 @@ No AI runs inside the app. Every rule is deterministic and written down, so the 
 - **No login, on purpose.** The app runs on the packing station's own computer and talks only to its own local service; anyone at that station can design and look up crates. Accounts would add a sign-in screen, password handling, and a server to protect, none of which help a box builder, and they would get in the way of showing the tool in a demo. If Hadrian later wants to know who built which crate, the smallest step is a name typed with each design, not a login system.
 - **Records hold the minimum.** The part file and the design output, nothing else. The design already contains its inputs and the version of the rules, so an old record reopens exactly as it was made, never regenerated.
 - **Refuse rather than guess.** Flat file, unknown unit, too heavy, nothing to cradle, a piece that would be zero size, a failed self-check: each is one plain sentence and no design.
+- **Measure the part before cutting.** The app trusts the 3D file. If the file is the wrong one, the crate will not fit, and only a tape measure can tell. So page 1 starts with the part's length, width, and height and says: off by more than 3 mm, do not cut.
 - **Conservative where it is cheap.** A part is called "one way round only" whenever its two ends differ at all where wood touches it, and the step says which way; a 6 mm gap is the shim threshold; a 1 mm felt limit is printed as 1/32 in, never rounded up.
 
 ## What it does not do, on purpose
@@ -38,7 +39,7 @@ No cardboard, no foam, no metal hardware, no shipping-size limits, no mixed part
 
 ## How it was built
 
-Spec first: the brief and three rounds of questions to the interviewer became `SPEC.md` (36 recorded decisions, 30 testable requirements, each with a named test). Then one module per pull request, eleven in all, each reviewed by a second AI (Codex gpt-6-astra) and, for the core modules, by CodeRabbit, with every finding judged and either fixed or declined in writing. Finally a whole-repository audit, read line by line by both a second AI and me, fixed in one pull request with three more review rounds, and two cold reads of the printed instructions by AI readers playing a box builder. Ninety-five tests run in two seconds. The AI session logs are in `logs/`.
+Spec first: the brief and three rounds of questions to the interviewer became `SPEC.md` (38 recorded decisions, 31 testable requirements, each with a named test). Then one module per pull request, eleven in all, each reviewed by a second AI (Codex gpt-6-astra) and, for the core modules, by CodeRabbit, with every finding judged and either fixed or declined in writing. Finally a whole-repository audit, read line by line by both a second AI and me, fixed in one pull request with three more review rounds, and two cold reads of the printed instructions by AI readers playing a box builder. Ninety-six tests run in two seconds. The AI session logs are in `logs/`.
 
 ## What it cost
 
@@ -46,4 +47,4 @@ Claude Code's own cost meter for the main build session, which covers the spec, 
 
 ## What I would do next
 
-A real builder building one crate from the printout and telling us every question they had. Sign-off from Hadrian on the clearance and tier numbers, which come from public standards, not from Hadrian. Then shimming guidance for very light parts, and a second part type per crate if the work orders need it.
+A real builder building one crate from the printout and telling us every question they had. Sign-off from Hadrian on the clearance and tier numbers, which come from public standards, not from Hadrian. Then shimming guidance for very light parts, and a second part type per crate if the work orders need it. A simpler backup crate for parts the app refuses today is worth building only if real parts are refused often (D37).

@@ -39,7 +39,7 @@ No cardboard, no foam, no metal hardware, no shipping-size limits, no mixed part
 
 ## How it was built
 
-Spec first: the brief and three rounds of questions to the interviewer became `SPEC.md` (38 recorded decisions, 31 testable requirements, each with a named test). Then one pull request per module, ten in all, each reviewed by a second AI (Codex gpt-6-astra) and, for the core modules, by CodeRabbit, with every finding judged and either fixed or declined in writing. Then a whole-repository audit, read line by line by both a second AI and me, fixed in one pull request with three more review rounds, and two cold reads of the printed instructions by AI readers playing a box builder, fixed in another. Two later pull requests added the part check before cutting, a fix to the printed page header, and a colour change: fourteen pull requests in all. Ninety-six tests run in two seconds. The AI session logs are in `logs/`.
+Spec first: the brief and three rounds of questions to the interviewer became `SPEC.md` (38 recorded decisions, 31 testable requirements, each with a named test). Then one pull request per module, ten in all, each reviewed by a second AI (Codex gpt-6-astra) and, for the core modules, by CodeRabbit, with every finding judged and either fixed or declined in writing. Then a whole-repository audit, read line by line by both a second AI and me, fixed in one pull request with three more review rounds, and two cold reads of the printed instructions by AI readers playing a box builder, fixed in another. Two later pull requests added the part check before cutting, a fix to the printed page header, and a colour change. Ninety-six tests run in two seconds. The AI session logs are in `logs/`.
 
 ## What it cost
 
